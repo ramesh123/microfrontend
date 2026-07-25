@@ -1,0 +1,100 @@
+{
+  "name": "Enrich Columns",
+  "vlookup_name": {
+    "type": "text",
+    "label": "VLookup Name",
+    "value": ""
+  },
+  "source": {
+    "type": "select",
+    "label": "Choose Source",
+    "value": ""
+  },
+  "target": {
+    "type": "select",
+    "label": "Choose Target",
+    "value": ""
+  },
+  "mergeType": {
+    "type": "select",
+    "label": "Choose merge type",
+    "value": "",
+    "options": [
+      {
+          "label": "Inner",
+          "value": "inner"
+      },
+      {
+          "label": "Left",
+          "value": "left"
+      },
+      {
+          "label": "Right",
+          "value": "right"
+      },
+      {
+          "label": "Outer",
+          "value": "full"
+      },
+      {
+          "label": "Cross",
+          "value": "cross"
+      }
+  ]
+  },
+  "vlookup_details": { 
+    "tabs": [
+      {
+        "id": "key_columns",
+        "label": "Key Columns Data",
+        "description": "Please match the key columns with target source.",
+        "fields": [
+          {
+            "type": "dynamic_rows",
+            "headers": ["Key Column Name", "Source Column Name"],
+            "row_template": [
+              {
+                "id": "key_column",
+                "type": "select"
+              },
+              {
+                "id": "source_column",
+                "type": "select"
+              }
+            ],
+            "value": [{ "key_column": "", "source_column": "" }]
+          }
+        ]
+      },
+      {
+        "id": "enrich_columns",
+        "label": "Enrich Columns Data",
+        "description": "Please select the columns which you want to enrich.",
+        "fields": [
+          {
+            "type": "checkbox_group",
+            "value": []
+          }
+        ]
+      },
+      {
+        "id": "add_filters",
+        "label": "Add Filters",
+        "fields": [
+          {
+            "id": "data_field_filters",
+            "label": "Data Field Filters",
+            "type": "filter_rows",
+            "value": []
+          },
+          {
+            "id": "lookup_field_filters",
+            "label": "Lookup Field Filters",
+            "type": "filter_rows",
+            "value": []
+          }
+        ]
+      }
+    ]
+  }
+}

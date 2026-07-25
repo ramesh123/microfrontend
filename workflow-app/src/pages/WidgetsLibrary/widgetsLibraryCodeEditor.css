@@ -1,0 +1,31 @@
+/* Monaco code editors — flush in panel, no nested box or focus outline */
+
+.widgets-library-code-editor {
+  min-height: 0;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.widgets-library-code-editor .monaco-editor,
+.widgets-library-code-editor .monaco-editor-background,
+.widgets-library-code-editor .margin,
+.widgets-library-code-editor .monaco-editor .overflow-guard {
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.widgets-library-code-editor .monaco-editor.focused,
+.widgets-library-code-editor .monaco-editor:focus-visible {
+  outline: none !important;
+}
+
+.widgets-library-code-editor .monaco-editor .line-numbers {
+  color: color-mix(in srgb, var(--muted-foreground) 85%, transparent) !important;
+}
+
+.widgets-library-code-editor .monaco-editor .view-line span {
+  font-variant-ligatures: none;
+}

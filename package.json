@@ -1,0 +1,15 @@
+{
+  "name": "micro-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "container-app",
+    "workflow-app",
+    "shared"
+  ],
+  "scripts": {
+    "dev:workflow": "npm run build:watch --workspace workflow-app",
+    "preview:workflow": "npm run preview --workspace workflow-app",
+    "dev:container": "npm run dev --workspace container-app"
+  }
+}

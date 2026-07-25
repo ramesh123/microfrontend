@@ -1,0 +1,48 @@
+.form-builder-canvas-surface {
+  background-color: var(--gray-surface);
+  background-image: radial-gradient(color-mix(in srgb, var(--gray-border) 55%, transparent) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.form-builder-form-zone {
+  border: 1px solid color-mix(in srgb, var(--gray-border) 80%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--gray-elevated) 92%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--gray-text) 4%, transparent),
+    0 4px 16px color-mix(in srgb, var(--gray-text) 3%, transparent);
+}
+
+.form-builder-empty-state {
+  animation: form-builder-fade-in 0.35s ease-out;
+}
+
+.form-builder-field-enter {
+  animation: form-builder-fade-in 0.25s ease-out;
+}
+
+@keyframes form-builder-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-builder-palette-item:hover .form-builder-palette-add {
+  color: hsl(var(--primary));
+  transform: scale(1.12);
+}
+
+.form-builder-palette-add {
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.form-builder-field-selected {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent),
+    0 4px 14px color-mix(in srgb, var(--primary) 12%, transparent);
+}
