@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="108" role="img">
-  <title>IEC 60870-5-104</title>
-  <g transform="translate(32 32) scale(1.85 2.15) translate(-32 -32)">
-    <polyline points="12,38 20,22 28,32 36,24 44,30 52,26" fill="none" stroke="#FB923C" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="20" cy="22" r="3" fill="#EA580C"/>
-    <circle cx="36" cy="24" r="3" fill="#EA580C"/>
-    <line x1="12" y1="44" x2="52" y2="44" stroke="#FDBA74" stroke-width="1.9" stroke-dasharray="3 2"/>
-  </g>
-</svg>
