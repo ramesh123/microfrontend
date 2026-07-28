@@ -1,0 +1,136 @@
+/* Widget editor tab + section headers — theme text, one line below header */
+
+.widgets-library-editor-tabs [data-slot="tabs-list"] {
+  position: relative;
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding-top: 2px !important;
+  padding-bottom: 1px !important;
+  box-shadow: none !important;
+  border-bottom: none !important;
+}
+
+/* Theme divider — full width under tab row */
+.widgets-library-editor-tabs [data-slot="tabs-list"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: var(--border);
+  pointer-events: none;
+}
+
+.widgets-library-editor-tabs [data-slot="tabs-trigger"] {
+  margin-bottom: 0;
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+  box-shadow: none !important;
+}
+
+.widgets-library-editor-tabs [data-slot="tabs-trigger"]:hover {
+  color: var(--primary) !important;
+  background: transparent !important;
+}
+
+.widgets-library-editor-tabs [data-slot="tabs-trigger"][data-state="active"] {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+  border-top-color: transparent !important;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.widgets-library-editor-section-header {
+  position: relative;
+  background: transparent;
+  border-bottom: none;
+}
+
+.widgets-library-editor-section-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: var(--border);
+  pointer-events: none;
+}
+
+.widgets-library-editor-section-title {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* Blue glass themes — primary + border tokens */
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-tabs [data-slot="tabs-trigger"]:hover,
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-tabs [data-slot="tabs-trigger"][data-state="active"] {
+  color: var(--primary, var(--neu-blue, #2a74d5)) !important;
+}
+
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-tabs [data-slot="tabs-trigger"][data-state="active"] {
+  border-bottom-color: var(--primary, var(--neu-blue, #2a74d5)) !important;
+}
+
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-section-title {
+  color: var(--primary, var(--neu-blue, #2a74d5));
+}
+
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-tabs [data-slot="tabs-list"]::after,
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-section-header::after {
+  background-color: var(--border, #dbeafe);
+}
+
+.dark .widgets-library-editor-tabs [data-slot="tabs-list"]::after,
+.dark .widgets-library-editor-section-header::after {
+  background-color: var(--border);
+}
+
+/* Resize splitters — soft tint, visible without heavy contrast */
+.widgets-library-editor-splitter-vertical,
+.widgets-library-editor-splitter-horizontal {
+  background: color-mix(in srgb, var(--primary) 16%, var(--border)) !important;
+  transition: background-color 0.15s ease;
+}
+
+.widgets-library-editor-splitter-vertical:hover,
+.widgets-library-editor-splitter-horizontal:hover {
+  background: color-mix(in srgb, var(--primary) 42%, var(--border)) !important;
+}
+
+.dark .widgets-library-editor-splitter-vertical,
+.dark .widgets-library-editor-splitter-horizontal {
+  background: color-mix(in srgb, var(--primary) 22%, var(--border)) !important;
+}
+
+.dark .widgets-library-editor-splitter-vertical:hover,
+.dark .widgets-library-editor-splitter-horizontal:hover {
+  background: color-mix(in srgb, var(--primary) 48%, var(--border)) !important;
+}
+
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-splitter-vertical,
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-splitter-horizontal {
+  background: color-mix(
+    in srgb,
+    var(--primary, var(--neu-blue, #2563eb)) 14%,
+    var(--border)
+  ) !important;
+}
+
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-splitter-vertical:hover,
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-editor-splitter-horizontal:hover {
+  background: color-mix(
+    in srgb,
+    var(--primary, var(--neu-blue, #2563eb)) 38%,
+    var(--border)
+  ) !important;
+}

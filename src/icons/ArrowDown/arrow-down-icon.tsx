@@ -1,0 +1,14 @@
+import React from 'react';
+
+export const DoubleArrowIcon = ({ size = 24, color = 'currentColor', ...props }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24" 
+    width={size} 
+    height={size} 
+    fill={color}
+    {...props}
+  >
+    <path xmlns="http://www.w3.org/2000/svg" fill="currentColor" d="m6.05 19l5-7l-5-7H8.5l5 7l-5 7H6.05ZM12 19l5-7l-5-7h2.45l5 7l-5 7H12Z"/>
+  </svg>
+);
