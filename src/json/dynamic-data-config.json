@@ -1,0 +1,290 @@
+{
+    "detailViewConfig": {
+      "validationFields": [
+        {
+          "key": "field",
+          "displayName": "Field",
+          "type": "text",
+          "fontStyle": "mono",
+          "fontWeight": "medium"
+        },
+        {
+          "key": "actualValue",
+          "displayName": "Actual Value",
+          "type": "text",
+          "fontStyle": "mono",
+          "fontWeight": "normal"
+        },
+        {
+          "key": "expectedValue",
+          "displayName": "Expected Value",
+          "type": "text",
+          "fontStyle": "mono",
+          "fontWeight": "normal",
+          "defaultValue": "-"
+        },
+        {
+          "key": "result",
+          "displayName": "Result",
+          "type": "status",
+          "align": "center"
+        }
+      ],
+      "headerConfig": {
+        "componentName": {
+          "key": "componentName",
+          "displayName": "Component Name",
+          "style": "title"
+        },
+        "validationNumber": {
+          "key": "validationNumber",
+          "displayName": "Validation Number",
+          "style": "subtitle"
+        },
+        "cycle": {
+          "key": "cycle",
+          "displayName": "Cycle",
+          "type": "badge",
+          "variant": "outline"
+        }
+      },
+      "summaryConfig": {
+        "dataset": {
+          "key": "dataset",
+          "displayName": "Dataset"
+        },
+        "table": {
+          "key": "table",
+          "displayName": "Table"
+        },
+        "tableKey": {
+          "key": "tableKey",
+          "displayName": "Table Key"
+        }
+      },
+      "statsConfig": {
+        "totalPassed": {
+          "key": "totalPassed",
+          "displayName": "Passed",
+          "icon": "CheckCircle2",
+          "variant": "success"
+        },
+        "totalFailed": {
+          "key": "totalFailed",
+          "displayName": "Failed",
+          "icon": "XCircle",
+          "variant": "error"
+        }
+      }
+    },
+    "columnGroups": {
+      "orderInfo": {
+        "headerName": "Order Information",
+        "headerClass": "order-info-header",
+        "columns": {
+          "order_id": {
+            "field": "order_id",
+            "headerName": "Order ID",
+            "headerTooltip": "Order Identifier",
+            "sortable": true,
+            "filter": true
+          }
+        }
+      }
+    },
+    "standardColumns": {
+      "result": {
+        "field": "Result",
+        "headerName": "Result",
+        "headerClass": "result-header",
+        "headerTooltip": "Validation Result",
+        "sortable": true,
+        "filter": true,
+        "cellStyleFunction": "resultCellStyle"
+      },
+      "viewData": {
+        "headerName": "View Data",
+        "headerClass": "view-data-header",
+        "headerTooltip": "View detailed validation data",
+        "sortable": false,
+        "filter": false,
+        "minWidth": 100,
+        "maxWidth": 100,
+        "width": 100,
+        "pinned": "right",
+        "cellRenderer": "viewDataCellRenderer"
+      }
+    },
+    "data": [
+      {
+        "order_id": 1001,
+        "validationDetails": {
+          "componentName": "Order Validation",
+          "validationNumber": "1001",
+          "cycle": "001",
+          "dataset": "orders",
+          "table": "customer_orders",
+          "tableKey": "Order:1001",
+          "totalPassed": 3,
+          "totalFailed": 0,
+          "fields": [
+            {
+              "field": "product_code",
+              "actualValue": "PROD100",
+              "expectedValue": "PROD100",
+              "result": "Pass"
+            },
+            {
+              "field": "quantity",
+              "actualValue": 5,
+              "expectedValue": 5,
+              "result": "Pass"
+            },
+            {
+              "field": "total_amount",
+              "actualValue": 1000,
+              "expectedValue": 1000,
+              "result": "Pass"
+            }
+          ]
+        },
+        "Result": "PASS"
+      },
+      {
+        "order_id": 1002,
+        "validationDetails": {
+          "componentName": "Order Validation",
+          "validationNumber": "1002",
+          "cycle": "001",
+          "dataset": "orders",
+          "table": "customer_orders",
+          "tableKey": "Order:1002",
+          "totalPassed": 3,
+          "totalFailed": 0,
+          "fields": [
+            {
+              "field": "product_code",
+              "actualValue": "PROD101",
+              "expectedValue": "PROD101",
+              "result": "Pass"
+            },
+            {
+              "field": "quantity",
+              "actualValue": 3,
+              "expectedValue": 3,
+              "result": "Pass"
+            },
+            {
+              "field": "total_amount",
+              "actualValue": 450,
+              "expectedValue": 450,
+              "result": "Pass"
+            }
+          ]
+        },
+        "Result": "PASS"
+      },
+      {
+        "order_id": 1003,
+        "validationDetails": {
+          "componentName": "Order Validation",
+          "validationNumber": "1003",
+          "cycle": "001",
+          "dataset": "orders",
+          "table": "customer_orders",
+          "tableKey": "Order:1003",
+          "totalPassed": 3,
+          "totalFailed": 0,
+          "fields": [
+            {
+              "field": "product_code",
+              "actualValue": "PROD102",
+              "expectedValue": "PROD102",
+              "result": "Pass"
+            },
+            {
+              "field": "quantity",
+              "actualValue": 7,
+              "expectedValue": 7,
+              "result": "Pass"
+            },
+            {
+              "field": "total_amount",
+              "actualValue": 2100,
+              "expectedValue": 2100,
+              "result": "Pass"
+            }
+          ]
+        },
+        "Result": "PASS"
+      },
+      {
+        "order_id": 1004,
+        "validationDetails": {
+          "componentName": "Order Validation",
+          "validationNumber": "1004",
+          "cycle": "001",
+          "dataset": "orders",
+          "table": "customer_orders",
+          "tableKey": "Order:1004",
+          "totalPassed": 3,
+          "totalFailed": 0,
+          "fields": [
+            {
+              "field": "product_code",
+              "actualValue": "PROD103",
+              "expectedValue": "PROD103",
+              "result": "Pass"
+            },
+            {
+              "field": "quantity",
+              "actualValue": 2,
+              "expectedValue": 2,
+              "result": "Pass"
+            },
+            {
+              "field": "total_amount",
+              "actualValue": 800,
+              "expectedValue": 800,
+              "result": "Pass"
+            }
+          ]
+        },
+        "Result": "PASS"
+      },
+      {
+        "order_id": 1005,
+        "validationDetails": {
+          "componentName": "Order Validation",
+          "validationNumber": "1005",
+          "cycle": "001",
+          "dataset": "orders",
+          "table": "customer_orders",
+          "tableKey": "Order:1005",
+          "totalPassed": 2,
+          "totalFailed": 1,
+          "fields": [
+            {
+              "field": "product_code",
+              "actualValue": "PROD104",
+              "expectedValue": "PROD104",
+              "result": "Pass"
+            },
+            {
+              "field": "quantity",
+              "actualValue": 10,
+              "expectedValue": 10,
+              "result": "Pass"
+            },
+            {
+              "field": "total_amount",
+              "actualValue": 1000,
+              "expectedValue": 1500,
+              "result": "Fail"
+            }
+          ]
+        },
+        "Result": "FAIL"
+      }
+    ]
+  }

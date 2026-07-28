@@ -1,0 +1,37 @@
+{
+  "sections": [
+    {
+      "name": "Input",
+      "fields": [
+        { "key": "input_local", "display_name": "Local", "type": "checkbox" },
+        { "key": "local_source_path", "display_name": "Source Path", "type": "text", "placeholder": "Enter local source path", "depends_key": ["input_local"], "depends_value": [true] },
+        { "key": "local_file_pattern", "display_name": "File Pattern", "type": "text", "placeholder": "Enter file pattern", "depends_key": ["input_local"], "depends_value": [true] },
+        { "key": "local_tdate", "display_name": "T+Date", "type": "text", "placeholder": "Enter T+Date", "depends_key": ["input_local"], "depends_value": [true] },
+        { "key": "local_tmonth", "display_name": "T+Month", "type": "text", "placeholder": "Enter T+Month", "depends_key": ["input_local"], "depends_value": [true] },
+        { "key": "local_move_to_process", "display_name": "Move to Process", "type": "checkbox", "depends_key": ["input_local"], "depends_value": [true] },
+        { "key": "local_process_path", "display_name": "Process Path", "type": "text", "placeholder": "Enter process path", "depends_key": ["input_local", "local_move_to_process"], "depends_value": [true, true] },
+
+        { "key": "input_remote", "display_name": "Remote", "type": "checkbox" },
+        { "key": "remote_source_path", "display_name": " Remote Source Path", "type": "text", "placeholder": "Enter remote source path", "depends_key": ["input_remote"], "depends_value": [true] },
+        { "key": "remote_file_pattern", "display_name": "File Pattern", "type": "text", "placeholder": "Enter remote file pattern", "depends_key": ["input_remote"], "depends_value": [true] },
+        { "key": "remote_tdate", "display_name": "T+Date", "type": "text", "placeholder": "Enter T+Date", "depends_key": ["input_remote"], "depends_value": [true] },
+        { "key": "remote_tmonth", "display_name": "T+Month", "type": "text", "placeholder": "Enter T+Month", "depends_key": ["input_remote"], "depends_value": [true] },
+        { "key": "remote_move_to_process", "display_name": "Move to Process", "type": "checkbox", "depends_key": ["input_remote"], "depends_value": [true] },
+        { "key": "remote_process_path", "display_name": "Remote Process Path", "type": "text", "placeholder": "Enter remote process path", "depends_key": ["input_remote", "remote_move_to_process"], "depends_value": [true, true] }
+      ]
+    },
+    {
+      "name": "Output",
+      "fields": []
+    },
+    {
+      "name": "Rollback",
+      "fields": [
+        { "key": "output_bin_path", "display_name": "Output Bin Path", "type": "text", "placeholder": "Enter output bin path" },
+        { "key": "input_bin_path", "display_name": "Input Bin Path", "type": "text", "placeholder": "Enter input bin path" },
+        { "key": "output_bin_file_pattern", "display_name": "Output Bin File Pattern", "type": "text", "placeholder": "Enter output bin file pattern" },
+        { "key": "input_bin_file_pattern", "display_name": "Input Bin File Pattern", "type": "text", "placeholder": "Enter input bin file pattern" }
+      ]
+    }
+  ]
+}

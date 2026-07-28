@@ -1,0 +1,52 @@
+/**
+ * Theme-aware recon stat / trend card surfaces.
+ * Uses CSS variables so backgrounds follow light/dark and named themes (blue, orange, etc.).
+ */
+.recon-stat-card-surface {
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid color-mix(in oklch, var(--border) 72%, var(--primary) 28%);
+  background: linear-gradient(
+    165deg,
+    color-mix(in oklch, var(--secondary) 88%, var(--primary) 12%) 0%,
+    color-mix(in oklch, var(--accent) 75%, var(--secondary) 25%) 100%
+  );
+  box-shadow: var(--shadow-sm);
+  transition:
+    background 200ms ease,
+    border-color 200ms ease;
+}
+
+.recon-stat-card-surface:is(button, a):not(:disabled):hover {
+  border-color: color-mix(in oklch, var(--border) 55%, var(--primary) 45%);
+  background: linear-gradient(
+    165deg,
+    color-mix(in oklch, var(--accent) 65%, var(--primary) 18%) 0%,
+    color-mix(in oklch, var(--secondary) 70%, var(--accent) 30%) 100%
+  );
+}
+
+/* Blue-light: flat muted surface (matches Trends button / prior design) */
+.blue-light .recon-stat-card-surface {
+  border: 1px solid var(--muted);
+  background: var(--muted);
+  background-image: none;
+}
+
+.blue-light .recon-stat-card-surface:is(button, a):not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--muted));
+  background: color-mix(in srgb, var(--muted) 80%, transparent);
+  background-image: none;
+}
+
+/* Purple-light: flat light purple surface (uses theme muted/accent tokens) */
+.purple-light .recon-stat-card-surface {
+  border: 1px solid var(--border);
+  background: var(--muted);
+  background-image: none;
+}
+
+.purple-light .recon-stat-card-surface:is(button, a):not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--muted));
+  background: var(--accent);
+  background-image: none;
+}

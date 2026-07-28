@@ -1,0 +1,2442 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { MappingArea } from './MappingArea';
+import { DataSourcePanel } from './DataSourcePanel';
+import { TableListPanel } from './TableListPanel';
+import { SelectSources } from './SelectSources';
+import { NewConnectionsPanel } from './NewConnectionsPanel';
+import { ConnectionsPage } from './ConnectionsPage';
+import { DataGridPreview } from './DataGridPreview';
+import { FiltersConfiguration } from './FiltersConfiguration';
+import ConditionalFilter from '@/components/common/ConditionalFilter';
+import MultiRowDynamicForm from '@/components/common/multi-row-dynamic-field';
+import EnrichColumns from '@/components/common/enrichColumns';
+import enrichColumnsFormData from '@/components/common/enrichColumns/enrichFormData.json';
+import { ColumnMapping, DataSource, Join } from './types/mapping';
+import { mockValidationResults } from './data/mockData';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import useFlowStore from '@/stores/flowStore';
+import { saveNodeDetailsApi } from '@/controllers/API';
+import { mapFilterDataToPayload } from '@/utils/filterUtils';
+import { sanitizeFilters } from '@/utils/utils';
+import { useExecuteWorkflow } from '@/hooks/use-execute-flow';
+import { Loader2, Save, Play, Plus, X } from 'lucide-react';
+import { useValidationStore } from '@/stores/validationStore';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RuleHeader } from './components/RuleHeader';
+import { AddRuleDialog } from './components/AddRuleDialog';
+import { RuleTabsContent } from './components/RuleTabsContent';
+import { FilterNodeView } from './components/FilterNodeView';
+import { FiltersPageView } from './components/FiltersPageView';
+import { DefaultRuleView } from './components/DefaultRuleView';
+import { useRuleManagement, ValidationRule } from './hooks/useRuleManagement';
+import { useFilterSave } from './hooks/useFilterSave';
+
+interface RuleConfigurationProps {
+  onClose?: () => void;
+}
+
+function RuleConfiguration({ onClose }: RuleConfigurationProps = {}) {
+  const currentNode = useFlowStore((state) => state.getSelectedNode());
+  const { mutate: executeWorkflow, isPending: isExecuting } = useExecuteWorkflow();
+  const [isSaving, setIsSaving] = useState(false);
+  const [submitRules, setSubmitRules] = useState<any>(null);
+  const [getOperationsPayloadFn, setGetOperationsPayloadFn] = useState<(() => any) | null>(null);
+  
+  // Validation store for selected row data
+  const { 
+    selectedRowData: storeSelectedRowData, 
+    connectionsWithSelectedData,
+    setSelectedRowData,
+    setConnectionsWithSelectedData 
+  } = useValidationStore();
+
+  // Reset validation store and local connection state when node changes
+  useEffect(() => {
+    if (!currentNode?.id) return;
+    const store = useValidationStore.getState();
+    store.reset();
+    setDragDropConnections([]);
+    setSubmitRules(null);
+    setConnectionKeyStates({});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentNode?.id]);
+  
+  // Get upstream nodes (previous nodes in the flow)
+  const upstreamNodes = useMemo(() => {
+    if (!currentNode?.id) return [];
+    return useFlowStore.getState().getUpstreamNodes(currentNode.id);
+  }, [currentNode?.id]);
+
+  // Convert upstream nodes to DataSource format
+  const flowDataSources = useMemo<DataSource[]>(() => {
+    return upstreamNodes.map((node: any) => {
+      const nodeName = node.data?.display_name || 
+                      node.data?.node?.name || 
+                      node.data?.label || 
+                      node.id;
+      
+      const outputColumns = node.data?.node?.output?.columns || [];
+      const outputData = node.data?.node?.output?.data || [];
+      
+      // Create columns from output with better type detection
+      const columns = outputColumns.map((colName: string) => {
+        // Try to detect type from actual data
+        let detectedType = 'string';
+        if (outputData.length > 0) {
+          const sampleValue = outputData[0]?.[colName];
+          if (typeof sampleValue === 'number') {
+            detectedType = Number.isInteger(sampleValue) ? 'integer' : 'decimal';
+          } else if (typeof sampleValue === 'boolean') {
+            detectedType = 'boolean';
+          } else if (sampleValue instanceof Date) {
+            detectedType = 'datetime';
+          }
+        }
+        
+        return {
+          name: colName,
+          type: detectedType,
+          selected: false
+        };
+      });
+
+      console.log(`📊 DataSource created for ${nodeName}:`, {
+        columnsCount: columns.length,
+        dataRowsCount: outputData.length,
+        nodeId: node.id
+      });
+
+      return {
+        id: node.id,
+        name: nodeName,
+        type: 'mysql' as const, // Default type, could be enhanced based on node type
+        connected: true,
+        tables: [{
+          name: nodeName,
+          columns,
+          selected: false
+        }]
+      };
+    });
+  }, [upstreamNodes]);
+
+  const [dataSources, setDataSources] = useState<DataSource[]>(flowDataSources);
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
+  const [selectedColumns, setSelectedColumns] = useState<{ application: string; table: string; column: string; type: string }[]>([]);
+  const [columnConnections, setColumnConnections] = useState<{ id: string; sourceColumn: any; targetColumn?: any; connectionType: 'single' | 'mapped' }[]>([]);
+  const [dragDropConnections, setDragDropConnections] = useState<{ id: string; sourceColumn: any; targetColumn: any; connectionType: 'drag-drop' | 'manual' }[]>([]);
+
+  // Update dataSources when flowDataSources changes
+  useEffect(() => {
+    if (flowDataSources.length > 0) {
+      console.log('🔄 Using real data from upstream nodes:', flowDataSources.length, 'sources');
+      setDataSources(flowDataSources);
+      // Auto-select all sources and their columns
+      const allTableNames = flowDataSources.flatMap(source => source.tables.map(table => table.name));
+      setSelectedTables(allTableNames);
+      
+      // Auto-select all columns for all tables
+      const updatedDataSources = flowDataSources.map(source => ({
+        ...source,
+        tables: source.tables.map(table => ({
+          ...table,
+          selected: true,
+          columns: table.columns.map(column => ({
+            ...column,
+            selected: true
+          }))
+        }))
+      }));
+      setDataSources(updatedDataSources);
+    } else {
+      // No mock data fallback - use empty data sources
+      console.log('⚠️ No upstream nodes found - using empty data sources');
+      setDataSources([]);
+      setSelectedTables([]);
+    }
+  }, [flowDataSources]);
+
+  // Sync dragDropConnections with store whenever they change
+  useEffect(() => {
+    if (dragDropConnections.length > 0) {
+      console.log('🔄 Syncing dragDropConnections with store:', dragDropConnections.length);
+      setConnectionsWithSelectedData(dragDropConnections);
+    }
+  }, [dragDropConnections, setConnectionsWithSelectedData]);
+
+  // Initialize connections from payload when component loads
+  useEffect(() => {
+    const payload = currentNode?.data?.node?.payload;
+    const savedNode = !!payload?.saved_node;
+    
+    console.log('🔄 Initializing connections from payload/store:', {
+      hasPayload: !!payload,
+      hasFieldRules: !!payload?.field_rules,
+      fieldRulesCount: payload?.field_rules?.length || 0,
+      storeConnectionsCount: connectionsWithSelectedData.length,
+      currentDragDropConnections: dragDropConnections.length
+    });
+    
+    // Priority 1: Load from store if saved is true and we don't have local connections
+    if (savedNode && connectionsWithSelectedData.length > 0 && dragDropConnections.length === 0) {
+      console.log('📝 Loading connections from validation store:', connectionsWithSelectedData.length);
+      setDragDropConnections(connectionsWithSelectedData);
+      return;
+    }
+    
+    // Priority 2: Load from payload field_rules if available and we don't have connections
+    if (payload?.field_rules && Array.isArray(payload.field_rules) && payload.field_rules.length > 0 && dragDropConnections.length === 0) {
+      console.log('📝 Converting payload field_rules to connections:', payload.field_rules.length);
+      
+      const connectionsFromPayload = payload.field_rules
+        .filter((rule: any) => rule?.sourceColumn && rule?.targetColumn) // Filter out invalid rules
+        .map((rule: any, index: number) => {
+          const sourceCol = rule.sourceColumn || {};
+          const targetCol = rule.targetColumn || {};
+          
+          const connectionId = `${sourceCol.application || 'unknown'}_${sourceCol.table || 'unknown'}_${sourceCol.name || 'unknown'}_to_${targetCol.application || 'unknown'}_${targetCol.table || 'unknown'}_${targetCol.name || 'unknown'}_${Date.now()}_${index}`;
+          
+          return {
+            id: connectionId,
+            sourceColumn: {
+              name: sourceCol.name || '',
+              type: sourceCol.type || 'string',
+              table: sourceCol.table || '',
+              source: sourceCol.source || 'left',
+              application: sourceCol.application || ''
+            },
+            targetColumn: {
+              name: targetCol.name || '',
+              type: targetCol.type || 'string',
+              table: targetCol.table || '',
+              source: targetCol.source || 'right',
+              application: targetCol.application || ''
+            },
+            connectionType: 'drag-drop' as const
+          };
+        });
+      
+      console.log('✅ Created connections from payload:', connectionsFromPayload);
+      setDragDropConnections(connectionsFromPayload);
+      
+      // Also store in validation store for persistence
+      setConnectionsWithSelectedData(connectionsFromPayload);
+    } else if (dragDropConnections.length === 0) {
+      console.log('ℹ️ No connections to load from payload or store');
+    }
+  }, [currentNode?.data?.node?.payload, connectionsWithSelectedData.length, dragDropConnections.length, setConnectionsWithSelectedData]);
+
+  // Additional effect to initialize key states when dragDropConnections change
+  useEffect(() => {
+    if (dragDropConnections.length > 0 && currentNode?.data?.node?.payload?.field_rules) {
+      console.log('🔄 Initializing key states for loaded connections:', dragDropConnections.length);
+      
+      const payload = currentNode.data.node.payload;
+      const initialState: Record<string, { isPrimaryKey: boolean; isValidationKey: boolean }> = {};
+      
+      // Ensure field_rules is an array before forEach
+      if (payload.field_rules && Array.isArray(payload.field_rules)) {
+        payload.field_rules.forEach(rule => {
+        if (rule.sourceColumn && rule.targetColumn) {
+          const baseConnectionId = `${rule.sourceColumn.application}-${rule.sourceColumn.table}-${rule.sourceColumn.name}-to-${rule.targetColumn.application}-${rule.targetColumn.table}-${rule.targetColumn.name}`;
+          
+          // Find matching connection in dragDropConnections
+          const matchingConnection = dragDropConnections.find(conn => {
+            const connBaseId = `${conn.sourceColumn.application}-${conn.sourceColumn.table}-${conn.sourceColumn.name}-to-${conn.targetColumn.application}-${conn.targetColumn.table}-${conn.targetColumn.name}`;
+            return connBaseId === baseConnectionId;
+          });
+          
+          if (matchingConnection) {
+            initialState[matchingConnection.id] = {
+              isPrimaryKey: rule.sourceColumn.isPrimaryKey || false,
+              isValidationKey: rule.sourceColumn.isValidationKey || false
+            };
+            
+            console.log(`🎯 Matched connection: ${matchingConnection.id}`, {
+              isPrimaryKey: rule.sourceColumn.isPrimaryKey,
+              isValidationKey: rule.sourceColumn.isValidationKey
+            });
+          }
+        }
+      });
+      } else {
+      }
+      
+      if (Object.keys(initialState).length > 0) {
+        setConnectionKeyStates(prev => ({ ...prev, ...initialState }));
+      }
+    }
+  }, [dragDropConnections, currentNode?.data?.node?.payload?.field_rules]);
+  const savedNode = !!currentNode?.data?.node?.payload?.saved_node;
+  const [selectedMappingForPreview, setSelectedMappingForPreview] = useState<any>(null);
+  const [selectedColumnForFilter, setSelectedColumnForFilter] = useState<{ name: string; type: string; table?: string; isSource: boolean; isTarget: boolean } | null>(null);
+  const [filtersByColumn, setFiltersByColumn] = useState<Record<string, any>>({});
+  const [showMergeView, setShowMergeView] = useState(false);
+  const [selectedSourceTab, setSelectedSourceTab] = useState<string>('');
+  const [isAddRuleDialogOpen, setIsAddRuleDialogOpen] = useState(false);
+  const [newRuleName, setNewRuleName] = useState('');
+  
+  // Use rule management hook
+  const {
+    rules,
+    activeRuleId,
+    ruleViewStates,
+    getRuleViewState,
+    setRuleViewState,
+    addRule: addRuleFromHook,
+    removeRule,
+    setActiveRuleId,
+    setRules,
+  } = useRuleManagement();
+
+  // Use filter save hook
+  const {
+    handleFilterSave,
+    filterConditionsBySource,
+    setFilterConditionsBySource,
+  } = useFilterSave(currentNode);
+  
+  // Get connected sources for the active rule based on connections (moved outside conditional for hooks)
+  const activeRuleSources = useMemo(() => {
+    if (!activeRuleId) return [];
+    
+    // Get unique source names (table names) from connections in the active rule
+    const tableNamesSet = new Set<string>();
+    dragDropConnections.forEach((conn: any) => {
+      if (conn.sourceColumn?.table) {
+        tableNamesSet.add(conn.sourceColumn.table);
+      }
+      if (conn.targetColumn?.table) {
+        tableNamesSet.add(conn.targetColumn.table);
+      }
+    });
+
+    // Match sources with dataSources - find sources that have tables matching the connection tables
+    const matchingSources: DataSource[] = [];
+    dataSources.forEach(source => {
+      const hasMatchingTable = source.tables.some(table => tableNamesSet.has(table.name));
+      if (hasMatchingTable) {
+        matchingSources.push(source);
+      }
+    });
+
+    return matchingSources;
+  }, [activeRuleId, dragDropConnections, dataSources]);
+
+  // If no sources found, use all dataSources
+  const sourcesToShow = activeRuleSources.length > 0 ? activeRuleSources : dataSources;
+
+  // Update selected tab when sources change (for filter node view inside rules)
+  useEffect(() => {
+    const anyRuleShowingFilterNode = Object.values(ruleViewStates).some(state => state.showFilterNode);
+    if (anyRuleShowingFilterNode && sourcesToShow.length > 0 && (!selectedSourceTab || !sourcesToShow.find(s => s.id === selectedSourceTab))) {
+      setSelectedSourceTab(sourcesToShow[0].id);
+    }
+  }, [ruleViewStates, sourcesToShow, selectedSourceTab]);
+  
+  // Track if rules have been initialized to prevent resetting
+  const rulesInitializedRef = React.useRef(false);
+  
+  // Initialize rules from payload when component loads (only once per node)
+  useEffect(() => {
+    const payload = currentNode?.data?.node?.payload;
+    
+    // Skip if already initialized for this node
+    if (rulesInitializedRef.current || rules.length > 0) {
+      return;
+    }
+    
+    if (payload?.rules && Array.isArray(payload.rules)) {
+      const loadedRules = payload.rules.map((rule: any, index: number) => ({
+        id: rule.uiState?.id || `rule_${index}_${Date.now()}`,
+        name: rule.ruleName || rule.uiState?.name || `Rule ${index + 1}`,
+        connections: []
+      }));
+      setRules(loadedRules);
+      if (loadedRules.length > 0) {
+        const firstRuleId = loadedRules[0].id;
+        setActiveRuleId(firstRuleId);
+        // Show default view (sources and connections panel) for the first rule
+        setRuleViewState(firstRuleId, { showFiltersPage: false, showConnectionsPage: false });
+        rulesInitializedRef.current = true;
+      }
+    } else if (payload?.field_rules && Array.isArray(payload.field_rules) && payload.field_rules.length > 0) {
+      // Group connections by rule name to create rules
+      const ruleMap = new Map<string, any[]>();
+      payload.field_rules.forEach((fieldRule: any) => {
+        const ruleName = fieldRule.rule || `${fieldRule.sourceColumn?.table}_VS_${fieldRule.targetColumn?.table}`;
+        if (!ruleMap.has(ruleName)) {
+          ruleMap.set(ruleName, []);
+        }
+      });
+      
+      const autoRules = Array.from(ruleMap.keys()).map((ruleName, index) => ({
+        id: `rule_${ruleName}_${Date.now()}`,
+        name: ruleName,
+        connections: []
+      }));
+      
+      if (autoRules.length > 0) {
+        setRules(autoRules);
+        const firstRuleId = autoRules[0].id;
+        setActiveRuleId(firstRuleId);
+        // Show default view (sources and connections panel) for the first rule
+        setRuleViewState(firstRuleId, { showFiltersPage: false, showConnectionsPage: false });
+        rulesInitializedRef.current = true;
+      }
+    }
+  }, [currentNode?.data?.node?.payload, currentNode?.id]);
+  
+  // Reset initialization flag when node changes
+  useEffect(() => {
+    if (currentNode?.id) {
+      rulesInitializedRef.current = false;
+    }
+  }, [currentNode?.id]);
+
+  // Rule management functions
+  const addRule = (name: string) => {
+    const ruleName = name.trim() || `Rule ${rules.length + 1}`;
+    const newRule: ValidationRule = {
+      id: `rule_${ruleName}_${Date.now()}`,
+      name: ruleName,
+      connections: []
+    };
+    setRules(prev => {
+      // Mark as initialized when manually adding rules
+      rulesInitializedRef.current = true;
+      return [...prev, newRule];
+    });
+    setActiveRuleId(newRule.id);
+    // Show default view (sources and connections panel) when a new rule is added
+    setRuleViewState(newRule.id, { showFiltersPage: false, showConnectionsPage: false });
+    setIsAddRuleDialogOpen(false);
+    setNewRuleName('');
+  };
+
+  const removeRule = (ruleId: string) => {
+    setRules(prev => {
+      const filtered = prev.filter(r => r.id !== ruleId);
+      if (activeRuleId === ruleId && filtered.length > 0) {
+        setActiveRuleId(filtered[0].id);
+      } else if (filtered.length === 0) {
+        setActiveRuleId(null);
+      }
+      return filtered;
+    });
+    
+    // Remove connections from this rule
+    const ruleConnections = dragDropConnections.filter(conn => {
+      const connection = conn as any;
+      const ruleName = connection.singleRule
+        ? `${connection.sourceColumn.table}_VS_${connection.sourceColumn.table}`
+        : `${connection.sourceColumn.table}_VS_${connection.targetColumn.table}`;
+      const rule = rules.find(r => r.id === ruleId);
+      return rule && rule.name === ruleName;
+    });
+    
+    ruleConnections.forEach(conn => {
+      handleDragDropConnectionRemove(conn.id);
+    });
+    
+    // Call hook's removeRule after cleaning up connections
+    removeRule(ruleId);
+  };
+
+  // Get connections for the active rule
+  const activeRule = rules.find(r => r.id === activeRuleId);
+  const activeRuleConnections = useMemo(() => {
+    // Always return all dragDropConnections - don't filter by rule name
+    // Connections will be associated with rules based on table pairs when saving
+    return dragDropConnections;
+  }, [dragDropConnections]);
+
+  // Store K/V button states for each connection
+  const [connectionKeyStates, setConnectionKeyStates] = useState<Record<string, {
+    isPrimaryKey: boolean;
+    isValidationKey: boolean;
+  }>>({});
+
+  // Initialize connection key states from payload when component loads or payload changes
+  useEffect(() => {
+    const payload = currentNode?.data?.node?.payload;
+    if (payload?.field_rules && Array.isArray(payload.field_rules)) {
+      const initialState: Record<string, { isPrimaryKey: boolean; isValidationKey: boolean }> = {};
+      
+      
+      payload.field_rules.forEach(rule => {
+        if (rule.sourceColumn && rule.targetColumn) {
+          // Create base connection ID without timestamp
+          const baseConnectionId = `${rule.sourceColumn.application}-${rule.sourceColumn.table}-${rule.sourceColumn.name}-to-${rule.targetColumn.application}-${rule.targetColumn.table}-${rule.targetColumn.name}`;
+          
+          const keyStates = {
+            isPrimaryKey: rule.sourceColumn.isPrimaryKey || false,
+            isValidationKey: rule.sourceColumn.isValidationKey || false
+          };
+          
+       
+          
+          // Store with base connection ID (without timestamp)
+          initialState[baseConnectionId] = keyStates;
+          
+          // Also try to find existing connections with timestamps and update them
+          Object.keys(connectionKeyStates).forEach(existingConnectionId => {
+            if (existingConnectionId.includes(baseConnectionId)) {
+              initialState[existingConnectionId] = keyStates;
+            }
+          });
+        }
+      });
+      
+      // Only update if there are states to set and they're different from current state
+      if (Object.keys(initialState).length > 0) {
+        setConnectionKeyStates(prev => {
+          // Check if we need to update (avoid unnecessary re-renders)
+          const hasChanges = Object.keys(initialState).some(key => {
+            const current = prev[key];
+            const initial = initialState[key];
+            return !current || 
+                   current.isPrimaryKey !== initial.isPrimaryKey || 
+                   current.isValidationKey !== initial.isValidationKey;
+          });
+          
+          if (hasChanges) {
+            return { ...prev, ...initialState };
+          }
+          
+          return prev;
+        });
+      }
+    }
+  }, [currentNode?.data?.node?.payload?.field_rules, connectionKeyStates]);
+  
+  // Track tables currently in drop zones in NewConnectionsPanel
+  const [leftDropZoneTables, setLeftDropZoneTables] = useState<Set<string>>(new Set());
+  const [rightDropZoneTables, setRightDropZoneTables] = useState<Set<string>>(new Set());
+  
+  // Memoize restricted tables to prevent unnecessary re-renders
+  const sourceRestrictedTables = React.useMemo(() => {
+    // Source panel should only be restricted by right drop zone usage
+    // Don't use usedTablesInValidation to avoid permanent restrictions
+    const restricted = new Set<string>();
+    
+    // Only add right drop zone restrictions if left drop zone is empty
+    if (leftDropZoneTables.size === 0) {
+      rightDropZoneTables.forEach(table => restricted.add(table));
+    }
+    
+    return restricted;
+  }, [rightDropZoneTables, leftDropZoneTables]);
+
+  const validationRestrictedTables = React.useMemo(() => {
+    // Validation panel should only be restricted by left drop zone usage
+    // Don't use usedTablesInSource to avoid permanent restrictions
+    const restricted = new Set<string>();
+    
+    // Only add left drop zone restrictions if right drop zone is empty
+    if (rightDropZoneTables.size === 0) {
+      leftDropZoneTables.forEach(table => restricted.add(table));
+    }
+    
+    return restricted;
+  }, [leftDropZoneTables, rightDropZoneTables]);
+  
+  // Handle drop zone table changes from NewConnectionsPanel
+  const handleDropZoneTablesChange = React.useCallback((leftTables: Set<string>, rightTables: Set<string>) => {
+    setLeftDropZoneTables(leftTables);
+    setRightDropZoneTables(rightTables);
+  }, []);
+  
+  const [joins, setJoins] = useState<Join[]>([
+    {
+      id: '1',
+      sourceTable: 'customers',
+      sourceColumn: 'customer_id',
+      targetTable: 'user_account',
+      targetColumn: 'id',
+      joinType: 'INNER',
+      sourceApplication: 'Production MySQL',
+      targetApplication: 'Analytics PostgreSQL'
+    }
+  ]);
+  
+  const [mappings, setMappings] = useState<ColumnMapping[]>([
+    {
+      id: '1',
+      sourceTable: 'customers',
+      sourceColumn: 'email',
+      targetTable: 'user_account',
+      targetColumn: 'email',
+      validationStatus: 'passed',
+      validationMessage: 'datatype varchar = varchar',
+      sourceApplication: 'Production MySQL',
+      targetApplication: 'Analytics PostgreSQL'
+    },
+    {
+      id: '2',
+      sourceTable: 'customers',
+      sourceColumn: 'customer_id',
+      targetTable: 'user_account',
+      targetColumn: 'id',
+      validationStatus: 'warning',
+      validationMessage: 'datatype integer ≠ bigint',
+      sourceApplication: 'Production MySQL',
+      targetApplication: 'Analytics PostgreSQL'
+    }
+  ]);
+
+  const handleDataSourceUpdate = (sourceId: string, updatedSource: DataSource) => {
+    setDataSources(prev => 
+      prev.map(source => source.id === sourceId ? updatedSource : source)
+    );
+  };
+
+  const handleColumnSelected = (columns: { application: string; table: string; column: string; type: string }[]) => {
+    setSelectedColumns(columns);
+    
+    // Create individual connections for each selected column
+    const newConnections = columns.map(column => ({
+      id: `${column.application}-${column.table}-${column.column}`,
+      sourceColumn: column,
+      connectionType: 'single' as const
+    }));
+    
+    setColumnConnections(prev => {
+      // Keep existing mapped connections and update single connections
+      const existingMappedConnections = prev.filter(conn => conn.connectionType === 'mapped');
+      return [...existingMappedConnections, ...newConnections];
+    });
+  };
+
+  const handleAddSource = (newSource: Omit<DataSource, 'id'>) => {
+    const sourceWithId: DataSource = {
+      ...newSource,
+      id: Date.now().toString()
+    };
+    setDataSources(prev => [...prev, sourceWithId]);
+  };
+
+  const handleAddJoin = (join: Omit<Join, 'id'>) => {
+    const joinWithId: Join = {
+      ...join,
+      id: Date.now().toString()
+    };
+    setJoins(prev => [...prev, joinWithId]);
+  };
+
+  const handleJoinUpdate = (joinId: string, updatedJoin: Join) => {
+    setJoins(prev => 
+      prev.map(join => join.id === joinId ? updatedJoin : join)
+    );
+  };
+
+  const handleJoinRemove = (joinId: string) => {
+    setJoins(prev => prev.filter(join => join.id !== joinId));
+  };
+
+  const handleAddMapping = (mapping: Omit<ColumnMapping, 'id'>) => {
+    const mappingWithId: ColumnMapping = {
+      ...mapping,
+      id: Date.now().toString()
+    };
+    setMappings(prev => [...prev, mappingWithId]);
+  };
+
+  const handleMappingRemove = (mappingId: string) => {
+    setMappings(prev => prev.filter(mapping => mapping.id !== mappingId));
+  };
+
+  const handleRemoveConnection = (connectionId: string) => {
+    setColumnConnections(prev => prev.filter(conn => conn.id !== connectionId));
+    
+    // If it's a single connection, also deselect the column
+    const connection = columnConnections.find(conn => conn.id === connectionId);
+    if (connection && connection.connectionType === 'single') {
+      const source = dataSources.find(ds => ds.name === connection.sourceColumn.application);
+      if (source) {
+        const updatedTables = source.tables.map(table => {
+          if (table.name === connection.sourceColumn.table) {
+            const updatedColumns = table.columns.map(column =>
+              column.name === connection.sourceColumn.column ? { ...column, selected: false } : column
+            );
+            return { ...table, columns: updatedColumns, selected: false };
+          }
+          return table;
+        });
+        handleDataSourceUpdate(source.id, { ...source, tables: updatedTables });
+      }
+    }
+  };
+
+  const handleCreateMapping = (sourceColumn: any, targetColumn: any) => {
+    const mappingId = `${sourceColumn.application}-${sourceColumn.table}-${sourceColumn.column}-to-${targetColumn.application}-${targetColumn.table}-${targetColumn.column}`;
+    
+    // Create the mapping connection
+    const newConnection = {
+      id: mappingId,
+      sourceColumn,
+      targetColumn,
+      connectionType: 'mapped' as const
+    };
+    
+    setColumnConnections(prev => {
+      // Remove existing single connections for both columns
+      const filteredConnections = prev.filter(conn => 
+        !(conn.connectionType === 'single' && 
+          ((conn.sourceColumn.application === sourceColumn.application && 
+            conn.sourceColumn.table === sourceColumn.table && 
+            conn.sourceColumn.column === sourceColumn.column) ||
+           (conn.sourceColumn.application === targetColumn.application && 
+            conn.sourceColumn.table === targetColumn.table && 
+            conn.sourceColumn.column === targetColumn.column)))
+      );
+      
+      return [...filteredConnections, newConnection];
+    });
+    
+    // Also create a traditional mapping
+    const validationStatus = sourceColumn.type === targetColumn.type ? 'passed' : 'warning';
+    const validationMessage = sourceColumn.type === targetColumn.type 
+      ? `datatype ${sourceColumn.type} = ${targetColumn.type}` 
+      : `datatype ${sourceColumn.type} ≠ ${targetColumn.type}`;
+      
+    const newMapping: Omit<ColumnMapping, 'id'> = {
+      sourceTable: sourceColumn.table,
+      sourceColumn: sourceColumn.column,
+      targetTable: targetColumn.table,
+      targetColumn: targetColumn.column,
+      validationStatus,
+      validationMessage,
+      sourceApplication: sourceColumn.application,
+      targetApplication: targetColumn.application
+    };
+    
+    handleAddMapping(newMapping);
+  };
+
+  const handleSubmitRules = (rules: any) => {
+
+    // IMPORTANT: Merge with existing submitRules instead of replacing
+    if (submitRules && submitRules.field_rules) {
+      
+      // Merge field_rules - avoid duplicates
+      const existingFieldRules = submitRules.field_rules || [];
+      const newFieldRules = rules.field_rules || [];
+      
+      const mergedFieldRules = [...existingFieldRules];
+      
+      newFieldRules.forEach((newRule: any) => {
+        const isDuplicate = existingFieldRules.some((existing: any) => 
+          existing.rule === newRule.rule &&
+          existing.sourceColumn.name === newRule.sourceColumn.name &&
+          existing.targetColumn.name === newRule.targetColumn.name
+        );
+        
+        if (!isDuplicate) {
+          mergedFieldRules.push(newRule);
+        } else {
+        }
+      });
+      
+      
+      // Merge rule_configuration similarly
+      const existingRuleConfig = submitRules.rule_configuration || [];
+      const newRuleConfig = rules.rule_configuration || [];
+      
+      const mergedRuleConfig = [...existingRuleConfig];
+      
+      newRuleConfig.forEach((newConfig: any) => {
+        const isDuplicate = existingRuleConfig.some((existing: any) => 
+          existing.rule === newConfig.rule &&
+          existing.sourceColumn.name === newConfig.sourceColumn.name &&
+          existing.targetColumn.name === newConfig.targetColumn.name
+        );
+        
+        if (!isDuplicate) {
+          mergedRuleConfig.push(newConfig);
+        }
+      });
+      
+      setSubmitRules({
+        field_rules: mergedFieldRules,
+        rule_configuration: mergedRuleConfig,
+        timestamp: new Date().toISOString()
+      });
+      
+      toast.success(`Rules updated: ${mergedFieldRules.length} field rules total`);
+    } else {
+      setSubmitRules(rules);
+      toast.success(`Rules set: ${rules.field_rules?.length || 0} field rules`);
+    }
+  };
+
+  // Convert connections to field_rules format
+  const convertConnectionsToFieldRules = (connections: any[]): any[] => {
+    return connections.map(conn => {
+      const ruleName = conn.singleRule
+        ? `${conn.sourceColumn.table}_VS_${conn.sourceColumn.table}`
+        : `${conn.sourceColumn.table}_VS_${conn.targetColumn.table}`;
+      
+      const keyState = getConnectionKeyState(conn.id);
+      
+      // Build base rule structure
+      const rule = {
+        rule: ruleName,
+        sourceColumn: {
+          name: conn.sourceColumn?.name || '',
+          type: conn.sourceColumn?.type || 'string',
+          table: conn.sourceColumn?.table || '',
+          source: conn.sourceColumn?.source || 'left',
+          application: conn.sourceColumn?.application || '',
+          isPrimaryKey: keyState.isPrimaryKey,
+          isValidationKey: keyState.isValidationKey
+        },
+        targetColumn: conn.singleRule ? {
+          name: conn.sourceColumn?.name || '',
+          type: conn.sourceColumn?.type || 'string',
+          table: conn.sourceColumn?.table || '',
+          source: conn.sourceColumn?.source || 'left',
+          application: conn.sourceColumn?.application || '',
+          isPrimaryKey: false,
+          isValidationKey: conn.singleRule ? true : false,
+          singleRule: true,
+          singleRuleType: conn.singleRuleType,
+          constantValue: conn.constantValue,
+          singleOperation: conn.singleOperation
+        } : {
+          name: conn.targetColumn?.name || '',
+          type: conn.targetColumn?.type || 'string',
+          table: conn.targetColumn?.table || '',
+          source: conn.targetColumn?.source || 'right',
+          application: conn.targetColumn?.application || '',
+          isPrimaryKey: keyState.isPrimaryKey,
+          isValidationKey: keyState.isValidationKey
+        }
+      };
+      
+      // For single-rule with text type and constant value, add JSON payload
+      if (conn.singleRule && conn.singleRuleType === 'text' && conn.constantValue) {
+        (rule.targetColumn as any).json = JSON.stringify({
+          type: 'constant',
+          value: conn.constantValue,
+          operation: conn.singleOperation || 'equals',
+          sourceColumn: {
+            name: conn.sourceColumn?.name,
+            table: conn.sourceColumn?.table,
+            application: conn.sourceColumn?.application
+          },
+          constantValue: conn.constantValue,
+          ruleType: 'single_rule_text'
+        });
+      }
+      
+      // For single-rule with field type, add JSON payload
+      if (conn.singleRule && conn.singleRuleType === 'field' && conn.singleOperation) {
+        (rule.targetColumn as any).json = JSON.stringify({
+          type: 'field',
+          operation: conn.singleOperation,
+          sourceColumn: {
+            name: conn.sourceColumn?.name,
+            table: conn.sourceColumn?.table,
+            application: conn.sourceColumn?.application
+          },
+          ruleType: 'single_rule_field'
+        });
+      }
+      
+      return rule;
+    });
+  };
+
+  // Auto-validate connections where values are equal
+  const autoValidateConnections = (connections: any[]): any => {
+    const fieldRules = convertConnectionsToFieldRules(connections);
+    const ruleConfigurations: any[] = [];
+    
+    connections.forEach(conn => {
+      // Check if values are equal (auto-validation)
+      const sourceValue = conn.sourceColumnValue;
+      const targetValue = conn.targetColumnValue || conn.constantValue;
+      const valuesMatch = sourceValue !== undefined && 
+                         targetValue !== undefined && 
+                         String(sourceValue) === String(targetValue);
+      
+      // If values match, create auto-validated rule configuration
+      if (valuesMatch && !conn.singleRule) {
+        const ruleName = `${conn.sourceColumn.table}_VS_${conn.targetColumn.table}`;
+        ruleConfigurations.push({
+          rule: ruleName,
+          connectionId: conn.id,
+          sourceColumn: {
+            name: conn.sourceColumn.name,
+            type: conn.sourceColumn.type,
+            table: conn.sourceColumn.table,
+            application: conn.sourceColumn.application,
+            operation: 'equal',
+            category: 'arithmetic',
+            config: { compareValue: targetValue },
+            applied: false,
+            originalValue: sourceValue
+          },
+          targetColumn: {
+            name: conn.targetColumn.name,
+            type: conn.targetColumn.type,
+            table: conn.targetColumn.table,
+            application: conn.targetColumn.application,
+            operation: 'equal',
+            category: 'arithmetic',
+            config: { compareValue: sourceValue },
+            applied: false,
+            originalValue: targetValue
+          },
+          validationStatus: {
+            isValid: true,
+            comparison: 'equal',
+            sourceValue: sourceValue,
+            targetValue: targetValue,
+            autoValidated: true
+          },
+          description: 'Auto-validated: Values are equal',
+          example: `${sourceValue} = ${targetValue} → PASS (Auto-validated)`
+        });
+      }
+    });
+    
+    return {
+      field_rules: fieldRules,
+      rule_configuration: ruleConfigurations,
+      autoValidated: ruleConfigurations.length > 0
+    };
+  };
+
+  const handleSave = async () => {
+    if (!currentNode?.data?.node?.save_node) {
+      toast.error('Save endpoint not configured for this node');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Convert connections to field_rules if not already done
+      let fieldRulesToSave = submitRules?.field_rules || [];
+      let ruleConfigToSave = submitRules?.rule_configuration || [];
+      
+      // Always ensure field_rules are saved from connections (even if no operations)
+      if (dragDropConnections.length > 0) {
+        // Try to get operations payload from ConnectionsPage if available
+        // This will include operations configured even if "Submit Rules" wasn't clicked
+        if (getOperationsPayloadFn) {
+          try {
+            const operationsPayload = getOperationsPayloadFn();
+            if (operationsPayload) {
+              // If we don't have field_rules yet, use from operations payload
+              if (fieldRulesToSave.length === 0) {
+                fieldRulesToSave = operationsPayload.field_rules || [];
+              }
+              
+              // Always merge rule_configuration from operations payload (if available)
+              if (operationsPayload.rule_configuration && operationsPayload.rule_configuration.length > 0) {
+                // Get existing connection IDs from current rule_configuration
+                const existingConfigIds = new Set();
+                ruleConfigToSave.forEach((category: any) => {
+                  if (category.operations) {
+                    category.operations.forEach((op: any) => {
+                      if (op.connectionId) {
+                        existingConfigIds.add(op.connectionId);
+                      }
+                    });
+                  }
+                });
+                
+                // Merge operations payload
+                operationsPayload.rule_configuration.forEach((category: any) => {
+                  const existingCategory = ruleConfigToSave.find((c: any) => c.category === category.category);
+                  if (existingCategory) {
+                    // Merge operations, avoiding duplicates
+                    const newOps = (category.operations || []).filter((op: any) => 
+                      !existingConfigIds.has(op.connectionId)
+                    );
+                    if (newOps.length > 0) {
+                      existingCategory.operations = [...(existingCategory.operations || []), ...newOps];
+                    }
+                  } else {
+                    // Add new category
+                    ruleConfigToSave.push(category);
+                  }
+                });
+                
+                console.log('✅ Merged operations payload from ConnectionsPage:', {
+                  fieldRules: fieldRulesToSave.length,
+                  ruleConfig: ruleConfigToSave.length
+                });
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ Could not get operations payload:', error);
+          }
+        }
+        
+        // If we still don't have field_rules yet, convert connections
+        // Merge dragDropConnections with connectionsWithSelectedData to include single side rules
+        if (fieldRulesToSave.length === 0) {
+          // Merge all connections (including single side rules from store)
+          const allConnectionsToConvert = [...dragDropConnections];
+          
+          // Add single side rules from store that aren't already in dragDropConnections
+          connectionsWithSelectedData.forEach((storeConn: any) => {
+            const isSingleRule = storeConn.singleRule;
+            if (isSingleRule) {
+              const exists = dragDropConnections.some((conn: any) => conn.id === storeConn.id);
+              if (!exists) {
+                allConnectionsToConvert.push(storeConn);
+                console.log('✅ Including single side rule from store:', storeConn.id);
+              }
+            }
+          });
+          
+          fieldRulesToSave = convertConnectionsToFieldRules(allConnectionsToConvert);
+          console.log('✅ Converted connections to field_rules:', {
+            total: fieldRulesToSave.length,
+            dragDropCount: dragDropConnections.length,
+            storeCount: connectionsWithSelectedData.length,
+            singleRules: fieldRulesToSave.filter((r: any) => r.targetColumn?.singleRule).length
+          });
+        }
+        
+        // Check for auto-validation (matching values) if no operations payload
+        if (ruleConfigToSave.length === 0) {
+          const autoValidated = autoValidateConnections(dragDropConnections);
+          
+          // If no rule_configuration exists but we have auto-validated connections, use them
+          if (autoValidated.autoValidated) {
+            ruleConfigToSave = autoValidated.rule_configuration;
+            toast.success(`Auto-validated ${autoValidated.rule_configuration.length} connection(s) with matching values`);
+          }
+        }
+      }
+      
+      // Create datasets structure same as multisource validation - stringified JSON data from previous nodes
+      const datasets: { [key: string]: string } = {};
+      
+      // Get upstream nodes (previous nodes in the workflow)
+      const getUpstreamNodes = useFlowStore.getState().getUpstreamNodes;
+      const upstreamNodesForData = currentNode?.id ? getUpstreamNodes(currentNode.id) : [];
+      
+      // For each upstream node, get its data and store as stringified JSON
+      upstreamNodesForData.forEach((node: any) => {
+        const nodeName = node.data?.node?.payload?.table || node.data?.display_name || node.id;
+        const nodeData = node.data?.node?.output?.data || [];
+        const nodeColumns = node.data?.node?.output?.columns || [];
+        
+        datasets[nodeName] = JSON.stringify(nodeData);
+      });
+      
+      // Fallback: if no upstream nodes, use current dataSources structure
+      if (Object.keys(datasets).length === 0) {
+        dataSources.forEach(source => {
+          const sourceKey = source.name || source.id;
+          // For now, store empty array as we don't have actual data in dataSources
+          datasets[sourceKey] = JSON.stringify([]);
+        });
+      }
+
+      // Group field_rules and rule_configuration by rule name (similar to nway matching)
+      const rulesGroupedByRuleName = new Map<string, {
+        ruleName: string;
+        sources: Set<string>;
+        field_rules: any[];
+        rule_configuration: any[];
+      }>();
+
+      // Group field_rules by rule name
+      fieldRulesToSave.forEach((fieldRule: any) => {
+        const ruleName = fieldRule.rule || `${fieldRule.sourceColumn?.table}_VS_${fieldRule.targetColumn?.table}`;
+        
+        if (!rulesGroupedByRuleName.has(ruleName)) {
+          rulesGroupedByRuleName.set(ruleName, {
+            ruleName: ruleName,
+            sources: new Set(),
+            field_rules: [],
+            rule_configuration: []
+          });
+        }
+        
+        const ruleGroup = rulesGroupedByRuleName.get(ruleName)!;
+        ruleGroup.field_rules.push(fieldRule);
+        
+        // Extract sources from field rule
+        if (fieldRule.sourceColumn?.table) {
+          ruleGroup.sources.add(fieldRule.sourceColumn.table);
+        }
+        if (fieldRule.targetColumn?.table) {
+          ruleGroup.sources.add(fieldRule.targetColumn.table);
+        }
+      });
+
+      // Group rule_configuration by rule name
+      ruleConfigToSave.forEach((ruleConfig: any) => {
+        const ruleName = ruleConfig.rule || `${ruleConfig.sourceColumn?.table}_VS_${ruleConfig.targetColumn?.table}`;
+        
+        if (!rulesGroupedByRuleName.has(ruleName)) {
+          rulesGroupedByRuleName.set(ruleName, {
+            ruleName: ruleName,
+            sources: new Set(),
+            field_rules: [],
+            rule_configuration: []
+          });
+        }
+        
+        const ruleGroup = rulesGroupedByRuleName.get(ruleName)!;
+        ruleGroup.rule_configuration.push(ruleConfig);
+        
+        // Extract sources from rule config
+        if (ruleConfig.sourceColumn?.table) {
+          ruleGroup.sources.add(ruleConfig.sourceColumn.table);
+        }
+        if (ruleConfig.targetColumn?.table) {
+          ruleGroup.sources.add(ruleConfig.targetColumn.table);
+        }
+      });
+
+      // Convert to rules array format (similar to nway matching)
+      const rulesPayload = Array.from(rulesGroupedByRuleName.values()).map((ruleGroup) => {
+        // Get source information from upstream nodes or dataSources
+        const ruleSources = Array.from(ruleGroup.sources).map(sourceName => {
+          // Find the source in upstream nodes or dataSources
+          const upstreamNode = upstreamNodesForData.find((node: any) => 
+            (node.data?.node?.payload?.table || node.data?.display_name || node.id) === sourceName
+          );
+          
+          const dataSource = dataSources.find((ds: any) => 
+            (ds.name || ds.id) === sourceName
+          );
+
+          // Determine source tag based on what we found
+          let sourceTag = `tag_${sourceName}`;
+          if (upstreamNode) {
+            sourceTag = upstreamNode.data?.node?.payload?.tag || sourceTag;
+          } else if (dataSource) {
+            sourceTag = (dataSource as any).tag || sourceTag;
+          }
+          
+          return {
+            source: sourceName,
+            sourceTag: sourceTag,
+            columns: {
+              matchColumns: [],
+              sumColumns: [],
+              debitCreditColumn: []
+            },
+            ruleFilters: [],
+            dropDuplicates: false
+          };
+        });
+
+        // Find the corresponding rule in the rules state
+        const uiRule = rules.find(r => r.name === ruleGroup.ruleName);
+
+        return {
+          ruleName: ruleGroup.ruleName,
+          sources: ruleSources,
+          field_rules: ruleGroup.field_rules,
+          rule_configuration: ruleGroup.rule_configuration,
+          process_all_records: false,
+          uiState: {
+            id: uiRule?.id || `rule_${ruleGroup.ruleName}_${Date.now()}`,
+            name: ruleGroup.ruleName,
+            connections: [],
+            connectionTypes: {},
+            sourceFilters: {}
+          }
+        };
+      });
+
+      // Build validation payload with rules structure (similar to nway matching)
+      const validationPayload = {
+        ...currentNode?.data?.node?.payload,
+        datasets: datasets, // Simple structure: { "source_name": "[{...}, {...}]" }
+        // Include rules array with sources, field_rules and rule_configuration grouped
+        ...(rulesPayload.length > 0 && { 
+          rules: rulesPayload
+        }),
+        // Keep backward compatibility - also include flat field_rules and rule_configuration
+        ...(fieldRulesToSave.length > 0 && { 
+          field_rules: fieldRulesToSave 
+        }),
+        ...(ruleConfigToSave.length > 0 && { 
+          rule_configuration: ruleConfigToSave 
+        }),
+        saved_node: true,
+      };
+
+      // Create finalData structure like nway validation
+      const finalData = JSON.parse(JSON.stringify(currentNode.data));
+      finalData.node.payload = validationPayload;
+      finalData.current_node_id = currentNode.id;
+      finalData.flow_id = currentNode.data.flow_id || "flow_123";
+
+     
+      
+      // Log rule_configuration structure
+      if (submitRules?.rule_configuration) {
+        submitRules.rule_configuration.forEach((rule: any, index: number) => {
+        
+        });
+      } else {
+      }
+      
+      if (submitRules) {
+      
+        
+        // Log the new field_rules and rule_configuration structure
+        if (submitRules.field_rules) {
+        }
+        if (submitRules.rule_configuration) {
+        }
+      } else {
+      }
+
+      const response = await saveNodeDetailsApi(currentNode.data.node.save_node, finalData);
+      
+      // Update the node data in the store
+      useFlowStore.getState().updateNodeData(currentNode.id, response);
+      
+      toast.success('Rule configuration saved successfully');
+    } catch (error) {
+      toast.error('Failed to save rule configuration');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExecute = () => {
+    if (!currentNode?.id) {
+      toast.error('No node selected for execution');
+      return;
+    }
+
+    // Get workflow information from the flow store
+    const flowStore = useFlowStore.getState();
+    const workflow = flowStore.currentWorkflow;
+    
+    if (!workflow) {
+      toast.error('No workflow found');
+      return;
+    }
+
+    const executePayload = {
+      flow_name: workflow.name || 'Untitled Workflow',
+      file_name: workflow.name || 'workflow',
+      flow_id: String(workflow.id || currentNode.id),
+      stmtdate: new Date().toISOString().split('T')[0] // Current date in YYYY-MM-DD format
+    };
+
+    executeWorkflow(executePayload);
+  };
+
+  const handleTableToggle = (tableName: string) => {
+    // Multiple selection logic - allow multiple sources to be selected
+    setSelectedTables(prev => 
+      prev.includes(tableName) 
+        ? prev.filter(name => name !== tableName)
+        : [...prev, tableName]
+    );
+    
+    // Auto-select all columns for the toggled source
+    setDataSources(prev => 
+      prev.map(source => {
+        const updatedTables = source.tables.map(table => {
+          if (table.name === tableName) {
+            // Toggle table selection and all its columns
+            const newSelected = !table.selected;
+            const updatedColumns = table.columns.map(column => ({
+              ...column,
+              selected: newSelected
+            }));
+            return { ...table, selected: newSelected, columns: updatedColumns };
+          }
+          return table;
+        });
+        return { ...source, tables: updatedTables };
+      })
+    );
+  };
+
+  const handleDragDropConnectionAdd = (sourceColumn: any, targetColumn: any) => {
+    // Generate unique ID with timestamp to allow multiple connections between same columns
+    const connectionId = `${sourceColumn.application}-${sourceColumn.table}-${sourceColumn.column}-to-${targetColumn.application}-${targetColumn.table}-${targetColumn.column}-${Date.now()}`;
+    
+    const newConnection = {
+      id: connectionId,
+      sourceColumn,
+      targetColumn,
+      connectionType: 'drag-drop' as const
+    };
+    
+   
+    setDragDropConnections(prev => {
+      const updated = [...prev, newConnection];
+    
+      return updated;
+    });
+  };
+
+  const handleDragDropConnectionRemove = (connectionId: string) => {
+    console.log('🗑️ Removing connection:', connectionId);
+    
+    setDragDropConnections(prev => {
+      const filtered = prev.filter(conn => conn.id !== connectionId);
+      console.log('🗑️ Updated dragDropConnections:', filtered.length, 'remaining');
+      return filtered;
+    });
+    
+    // Also remove from connectionsWithSelectedData if it exists there
+    const currentStoreConnections = connectionsWithSelectedData || [];
+    const filteredStoreConnections = currentStoreConnections.filter(conn => conn.id !== connectionId);
+    console.log('🗑️ Updated store connections:', filteredStoreConnections.length, 'remaining');
+    setConnectionsWithSelectedData(filteredStoreConnections);
+    
+    // Also remove from payload field_rules if it exists
+    if (currentNode?.data?.node?.payload?.field_rules) {
+      const updatedPayload = { ...currentNode.data.node.payload };
+      const fieldRules = [...updatedPayload.field_rules];
+      
+      // Find and remove the matching rule
+      const ruleIndex = fieldRules.findIndex((rule: any) => {
+        const ruleConnectionId = `${rule.sourceColumn.application}_${rule.sourceColumn.table}_${rule.sourceColumn.name}_to_${rule.targetColumn.application}_${rule.targetColumn.table}_${rule.targetColumn.name}`;
+        return connectionId.includes(ruleConnectionId);
+      });
+      
+      if (ruleIndex !== -1) {
+        fieldRules.splice(ruleIndex, 1);
+        updatedPayload.field_rules = fieldRules;
+        
+        // Update the node data in the store
+        const updatedNodeData = {
+          ...currentNode.data,
+          node: {
+            ...currentNode.data.node,
+            payload: updatedPayload
+          }
+        };
+        
+        console.log('🗑️ Updated payload field_rules:', fieldRules.length, 'remaining');
+        useFlowStore.getState().updateNodeData(currentNode.id, updatedNodeData);
+      }
+    }
+    
+    // Remove from local connection key states
+    setConnectionKeyStates(prev => {
+      const newStates = { ...prev };
+      delete newStates[connectionId];
+      console.log('🗑️ Removed from connection key states:', connectionId);
+      return newStates;
+    });
+  };
+
+  // Handle K/V button clicks
+  const handleKeyButtonClick = (connectionId: string, keyType: 'primary' | 'validation') => {
+    // Prevent any default behavior or propagation that might delete the connection
+    console.log('🔑 Key button clicked:', { connectionId, keyType });
+    
+    // Check if this is a single-rule connection by checking store
+    const storeConnections = useValidationStore.getState().connectionsWithSelectedData || [];
+    const isSingleRule = storeConnections.some((c: any) => c.id === connectionId && c.singleRule);
+    
+    // For single-rule connections, toggle validation state
+    if (isSingleRule && keyType === 'validation') {
+      // Toggle validation state for single-rule connections
+      const currentState = connectionKeyStates[connectionId] || { isPrimaryKey: false, isValidationKey: false };
+      setConnectionKeyStates(prev => ({
+        ...prev,
+        [connectionId]: { isPrimaryKey: false, isValidationKey: !currentState.isValidationKey }
+      }));
+      return; // Early return for single-rule - don't update payload
+    }
+    
+    // Get current state first - try multiple ID formats for single-rule connections
+    let currentState = connectionKeyStates[connectionId] || { isPrimaryKey: false, isValidationKey: false };
+    
+    // For single-rule connections, try to find by source column name
+    if (!currentState || (!currentState.isPrimaryKey && !currentState.isValidationKey)) {
+      // Try to match by extracting source column from connectionId
+      const connectionIdParts = connectionId.split('-');
+      if (connectionIdParts.includes('single')) {
+        // For single-rule: format is "application-table-name-single-timestamp"
+        // Try to match by source column
+        Object.keys(connectionKeyStates).forEach(key => {
+          if (key.includes(connectionIdParts[connectionIdParts.length - 2]) || 
+              connectionId.includes(key.split('-')[0])) {
+            currentState = connectionKeyStates[key] || currentState;
+          }
+        });
+      }
+    }
+    
+    // Update local state for immediate UI feedback
+    setConnectionKeyStates(prev => {
+      const newState = keyType === 'primary' 
+        ? { isPrimaryKey: !currentState.isPrimaryKey, isValidationKey: false }
+        : { isPrimaryKey: false, isValidationKey: !currentState.isValidationKey };
+      
+      return {
+        ...prev,
+        [connectionId]: newState
+      };
+    });
+    
+    // Also update the payload field_rules if it exists (only for normal connections, not single-rule)
+    if (currentNode?.data?.node?.payload?.field_rules) {
+      const updatedPayload = { ...currentNode.data.node.payload };
+      const fieldRules = [...updatedPayload.field_rules];
+      
+      // Find the matching rule and update it
+      for (let i = 0; i < fieldRules.length; i++) {
+        const rule = fieldRules[i];
+        if (rule.sourceColumn && rule.targetColumn) {
+          const ruleConnectionId = `${rule.sourceColumn.table}_${rule.sourceColumn.name}_${rule.targetColumn.table}_${rule.targetColumn.name}`;
+          
+          // Match by various ID formats
+          if (ruleConnectionId === connectionId || 
+              connectionId.includes(rule.sourceColumn.table) ||
+              connectionId.includes(rule.sourceColumn.name)) {
+            
+            // Update the sourceColumn with new key states
+            fieldRules[i] = {
+              ...rule,
+              sourceColumn: {
+                ...rule.sourceColumn,
+                isPrimaryKey: keyType === 'primary' ? !currentState.isPrimaryKey : false,
+                isValidationKey: keyType === 'validation' ? !currentState.isValidationKey : false
+              }
+            };
+            break;
+          }
+        }
+      }
+      
+      updatedPayload.field_rules = fieldRules;
+      
+      // Update the node data
+      const updatedNodeData = {
+        ...currentNode.data,
+        node: {
+          ...currentNode.data.node,
+          payload: updatedPayload
+        }
+      };
+      
+      useFlowStore.getState().updateNodeData(currentNode.id, updatedNodeData);
+    }
+  };
+
+  // Get key state for a connection from local state or payload
+  const getConnectionKeyState = (connectionId: string) => {
+    // Check if this is a single-rule connection first
+    const storeConnections = useValidationStore.getState().connectionsWithSelectedData || [];
+    const isSingleRule = storeConnections.some((c: any) => c.id === connectionId && c.singleRule);
+    
+    // For single-rule connections, return current state (disabled by default)
+    if (isSingleRule) {
+      // Return state from local state if exists, otherwise default to disabled
+      const existingState = connectionKeyStates[connectionId];
+      if (existingState) {
+        return existingState;
+      }
+      // Default to disabled for single-rule connections
+      return { isPrimaryKey: false, isValidationKey: false };
+    }
+    
+    // First check if we have exact match in local state
+    if (connectionKeyStates[connectionId]) {
+      return connectionKeyStates[connectionId];
+    }
+    
+    // For single-rule connections (by ID format), try to match by ID
+    if (connectionId.includes('-single-')) {
+      // Single-rule format: "application-table-name-single-timestamp"
+      // Try to find exact match first
+      if (connectionKeyStates[connectionId]) {
+        return connectionKeyStates[connectionId];
+      }
+      
+      // Single-rule connections should default to disabled (not validation)
+      return { isPrimaryKey: false, isValidationKey: false };
+    }
+    
+    // If no exact match, try to find by matching the core connection properties
+    // Extract core properties from connectionId (format: application_table_column_to_application_table_column_timestamp)
+    const parts = connectionId.split('_to_');
+    if (parts.length === 2) {
+      const [sourcePart, targetPart] = parts;
+      const sourceParts = sourcePart.split('_');
+      const targetParts = targetPart.split('_');
+      
+      // Remove timestamp from target part (last element)
+      if (targetParts.length > 3) {
+        targetParts.pop(); // Remove timestamp
+      }
+      
+      if (sourceParts.length >= 3 && targetParts.length >= 3) {
+        const sourceApplication = sourceParts[0];
+        const sourceTable = sourceParts[1];
+        const sourceColumn = sourceParts.slice(2).join('_'); // Handle column names with underscores
+        const targetApplication = targetParts[0];
+        const targetTable = targetParts[1];
+        const targetColumn = targetParts.slice(2).join('_'); // Handle column names with underscores
+        
+        // Create the base connection ID without timestamp
+        const baseConnectionId = `${sourceApplication}_${sourceTable}_${sourceColumn}_to_${targetApplication}_${targetTable}_${targetColumn}`;
+        
+        // Check if we have this base connection in our state
+        if (connectionKeyStates[baseConnectionId]) {
+          return connectionKeyStates[baseConnectionId];
+        }
+        
+        // If still not found, check payload directly
+        const payload = currentNode?.data?.node?.payload;
+        if (payload?.field_rules && Array.isArray(payload.field_rules)) {
+          for (const rule of payload.field_rules) {
+            if (rule.sourceColumn && rule.targetColumn &&
+                rule.sourceColumn.application === sourceApplication &&
+                rule.sourceColumn.table === sourceTable &&
+                rule.sourceColumn.name === sourceColumn &&
+                rule.targetColumn.application === targetApplication &&
+                rule.targetColumn.table === targetTable &&
+                rule.targetColumn.name === targetColumn) {
+              
+              return {
+                isPrimaryKey: rule.sourceColumn.isPrimaryKey || false,
+                isValidationKey: rule.sourceColumn.isValidationKey || false
+              };
+            }
+          }
+        }
+      }
+    }
+    
+    return { isPrimaryKey: false, isValidationKey: false };
+  };
+
+  const handleShowDataGrid = (mapping: any) => {
+    setSelectedMappingForPreview(mapping);
+  };
+
+  const handleCloseDataGrid = () => {
+    setSelectedMappingForPreview(null);
+  };
+
+  const handleSelectionChange = (selectedData: {
+    sourceRow: any;
+    targetRow: any;
+    mapping: any;
+  }) => {
+    // Store the selected row data
+    setSelectedRowData(selectedData);
+    
+    // Update connections with selected row data without losing existing connections
+    if (selectedData.sourceRow || selectedData.targetRow) {
+      const connectionsWithData = dragDropConnections.map(connection => {
+        // Get column values from selected rows
+        const sourceValue = selectedData.sourceRow?.[connection.sourceColumn.name] || null;
+        const targetValue = selectedData.targetRow?.[connection.targetColumn.name] || null;
+        
+        return {
+          ...connection,
+          sourceColumnValue: sourceValue,
+          targetColumnValue: targetValue,
+          hasSelectedData: !!(sourceValue || targetValue)
+        };
+      });
+      
+      // Merge with existing connections instead of replacing them
+      const existingConnections = connectionsWithSelectedData || [];
+      const mergedConnections = [...existingConnections];
+      
+      connectionsWithData.forEach(newConnection => {
+        const existingIndex = mergedConnections.findIndex(
+          existing => existing.id === newConnection.id
+        );
+        
+        if (existingIndex >= 0) {
+          // Update existing connection with new data
+          mergedConnections[existingIndex] = {
+            ...mergedConnections[existingIndex],
+            ...newConnection
+          };
+        } else {
+          // Add new connection
+          mergedConnections.push(newConnection);
+        }
+      });
+      
+      setConnectionsWithSelectedData(mergedConnections);
+    }
+    // Don't clear connections when no data is selected - preserve existing ones
+  };
+
+
+
+  const getSelectedColumns = () => {
+    const selectedColumns: { application: string; table: string; columns: string[] }[] = [];
+    
+    dataSources.forEach(source => {
+      source.tables.forEach(table => {
+        const columns = table.columns.filter(col => col.selected).map(col => col.name);
+        if (columns.length > 0) {
+          selectedColumns.push({
+            application: source.name,
+            table: table.name,
+            columns
+          });
+        }
+      });
+    });
+    
+    return selectedColumns;
+  };
+
+  const getFilteredDataSources = () => {
+    return dataSources.map(source => ({
+      ...source,
+      tables: source.tables.filter(table => selectedTables.includes(table.name))
+    })).filter(source => source.tables.length > 0);
+  };
+
+  const generateJsonPayload = () => {
+    const filteredSources = getFilteredDataSources();
+    
+    // Use all data sources for both source and validation data objects
+    const sourceDataObjects = filteredSources;
+    const validationDataObjects = filteredSources;
+
+    // Extract source columns from left panel
+    const sourceCols = sourceDataObjects.flatMap(source => 
+      source.tables.flatMap(table => 
+        table.columns.filter(col => col.selected).map(col => ({
+          application: source.name,
+          table: table.name,
+          column: col.name,
+          type: col.type
+        }))
+      )
+    );
+
+    // Extract target columns from right panel
+    const targetCols = validationDataObjects.flatMap(source => 
+      source.tables.flatMap(table => 
+        table.columns.filter(col => col.selected).map(col => ({
+          application: source.name,
+          table: table.name,
+          column: col.name,
+          type: col.type
+        }))
+      )
+    );
+
+    // Combine all connections
+    const allConnections = [
+      ...columnConnections.map(conn => ({
+        id: conn.id,
+        sourceColumn: conn.sourceColumn,
+        targetColumn: conn.targetColumn,
+        connectionType: conn.connectionType
+      })),
+      ...dragDropConnections.map(conn => ({
+        id: conn.id,
+        sourceColumn: conn.sourceColumn,
+        targetColumn: conn.targetColumn,
+        connectionType: conn.connectionType
+      })),
+      ...mappings.map(mapping => ({
+        id: mapping.id,
+        sourceColumn: {
+          application: mapping.sourceApplication,
+          table: mapping.sourceTable,
+          column: mapping.sourceColumn
+        },
+        targetColumn: {
+          application: mapping.targetApplication,
+          table: mapping.targetTable,
+          column: mapping.targetColumn
+        },
+        connectionType: 'mapping',
+        validationStatus: mapping.validationStatus,
+        validationMessage: mapping.validationMessage
+      })),
+      ...joins.map(join => ({
+        id: join.id,
+        sourceColumn: {
+          application: join.sourceApplication,
+          table: join.sourceTable,
+          column: join.sourceColumn
+        },
+        targetColumn: {
+          application: join.targetApplication,
+          table: join.targetTable,
+          column: join.targetColumn
+        },
+        connectionType: 'join',
+        joinType: join.joinType
+      }))
+    ];
+
+    const payload = {
+      source_data_objects: sourceDataObjects.map(source => ({
+        id: source.id,
+        name: source.name,
+        type: source.type,
+        connected: source.connected,
+        tables: source.tables.map(table => ({
+          name: table.name,
+          columns: table.columns.filter(col => col.selected).map(col => ({
+            name: col.name,
+            type: col.type
+          }))
+        }))
+      })),
+      validation_data_objects: validationDataObjects.map(source => ({
+        id: source.id,
+        name: source.name,
+        type: source.type,
+        connected: source.connected,
+        tables: source.tables.map(table => ({
+          name: table.name,
+          columns: table.columns.filter(col => col.selected).map(col => ({
+            name: col.name,
+            type: col.type
+          }))
+        }))
+      })),
+      source_cols: sourceCols,
+      target_cols: targetCols,
+      connections: allConnections
+    };
+
+    return payload;
+  };
+
+  const handleGenerateJson = () => {
+    const payload = generateJsonPayload();
+    console.log('Generated JSON Payload:', JSON.stringify(payload, null, 2));
+    toast.success('JSON payload generated and logged to console');
+  };
+
+  // Check if any rule is showing filters or connections page (for backward compatibility)
+  // Note: This is now handled per-rule inside the rule tabs
+  const anyRuleShowingFilters = Object.values(ruleViewStates).some(state => state.showFiltersPage);
+  const anyRuleShowingConnections = Object.values(ruleViewStates).some(state => state.showConnectionsPage);
+  
+  // If showing merge view (from + Merge button), render EnrichColumns component (same as merge node)
+  if (showMergeView) {
+    const handleMergeSave = async (enrichData: any) => {
+      console.log('Merge data saved:', enrichData);
+      toast.success('Merge configuration saved');
+      // You can save this to the node's payload or store it as needed
+      // For now, just close the view
+      setShowMergeView(false);
+    };
+
+    const handleMergeCancel = () => {
+      setShowMergeView(false);
+    };
+
+    // Get form data - use default from JSON if template doesn't have the required structure
+    const nodeTemplate = currentNode?.data?.node?.template || {};
+    const mergeFormData = nodeTemplate?.mergeType 
+      ? nodeTemplate 
+      : enrichColumnsFormData as any;
+    
+    // Ensure nodeData has the correct structure with data property
+    const mergeNodeData = currentNode?.data || {
+      data: {
+        node: currentNode?.data?.node || {},
+        saved_node: false
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-[1800px] p-4">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 mb-4 text-sm text-slate-600">
+            <button
+              onClick={() => setShowMergeView(false)}
+              className="hover:text-slate-900 underline"
+            >
+              Back
+            </button>
+            <span>/</span>
+            <span className="text-slate-900 font-medium">Merge Configuration</span>
+          </div>
+
+          {/* EnrichColumns Component (same as merge node) */}
+          <div className="h-[calc(100vh-120px)] overflow-y-auto">
+            <EnrichColumns
+              formData={mergeFormData}
+              nodeData={mergeNodeData as any}
+              onSave={handleMergeSave}
+              onCancel={handleMergeCancel}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If showing filters page globally (fallback), render it with connections on left and filters on right
+  if (anyRuleShowingFilters && false) { // Disabled - now handled inside rules
+    const allConnections = dragDropConnections.map(conn => ({
+      id: conn.id,
+      sourceColumn: conn.sourceColumn,
+      targetColumn: conn.targetColumn,
+      connectionType: conn.connectionType,
+      sourceColumnValue: (conn as any).sourceColumnValue,
+      targetColumnValue: (conn as any).targetColumnValue,
+      hasSelectedData: (conn as any).hasSelectedData,
+      singleRule: (conn as any).singleRule,
+      singleRuleType: (conn as any).singleRuleType,
+      constantValue: (conn as any).constantValue,
+      singleOperation: (conn as any).singleOperation
+    }));
+
+    const connectionsMap = new Map();
+    allConnections.forEach(conn => {
+      connectionsMap.set(conn.id, conn);
+    });
+    connectionsWithSelectedData.forEach(storeConn => {
+      const existing = connectionsMap.get(storeConn.id);
+      if (existing) {
+        connectionsMap.set(storeConn.id, {
+          ...existing,
+          ...storeConn
+        });
+      } else {
+        connectionsMap.set(storeConn.id, storeConn);
+      }
+    });
+    
+    const connectionsToUse = Array.from(connectionsMap.values());
+
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-[1800px] p-4">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 mb-4 text-sm text-slate-600">
+            <button
+              onClick={() => {
+                // Reset all rule view states
+                setRuleViewStates({});
+              }}
+              className="hover:text-slate-900 underline"
+            >
+              Connections
+            </button>
+            <span>/</span>
+            <span className="text-slate-900 font-medium">Filters</span>
+          </div>
+
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-12 gap-4 h-[calc(100vh-120px)]">
+            {/* Left Side - Connections List (Same as ConnectionsPage) */}
+            <div className="col-span-4 flex flex-col overflow-hidden">
+              <div className="h-full overflow-y-auto">
+                <ConnectionsPage
+                  connections={connectionsToUse}
+                  onBack={() => {
+                    // Reset all rule view states
+                    setRuleViewStates({});
+                  }}
+                  onClose={() => onClose?.()}
+                  onSubmitRules={handleSubmitRules}
+                  connectionKeyStates={connectionKeyStates}
+                  getConnectionKeyState={getConnectionKeyState}
+                />
+              </div>
+            </div>
+
+            {/* Right Side - Filters Configuration */}
+            <div className="col-span-8 flex flex-col overflow-hidden">
+              <div className="h-full bg-white border border-slate-200 rounded-lg p-6 overflow-y-auto">
+                <FiltersConfiguration
+                  connections={connectionsToUse}
+                  selectedColumn={selectedColumnForFilter}
+                  dataSources={dataSources}
+                  onFiltersChange={(filters) => {
+                    console.log('Filters changed:', filters);
+                    // Store filters in state or validation store if needed
+                  }}
+                  onColumnSelect={setSelectedColumnForFilter}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If showing connections page globally (fallback), render it
+  if (anyRuleShowingConnections && false) { // Disabled - now handled inside rules
+    // Only show drag-drop connections (user-created connections)
+    const allConnections = dragDropConnections.map(conn => ({
+      id: conn.id,
+      sourceColumn: conn.sourceColumn,
+      targetColumn: conn.targetColumn,
+      connectionType: conn.connectionType,
+      sourceColumnValue: (conn as any).sourceColumnValue,
+      targetColumnValue: (conn as any).targetColumnValue,
+      hasSelectedData: (conn as any).hasSelectedData
+    }));
+
+    // Determine which connections to use
+    // Merge store connections (which have selected row data) with allConnections
+    // Prioritize store connections for their selected row data
+    const connectionsMap = new Map();
+    
+    // First add all connections
+    allConnections.forEach(conn => {
+      connectionsMap.set(conn.id, conn);
+    });
+    
+    // Then update/merge with store connections that have selected data
+    connectionsWithSelectedData.forEach(storeConn => {
+      const existing = connectionsMap.get(storeConn.id);
+      if (existing) {
+        // Merge store data (selected row values) into existing connection
+        connectionsMap.set(storeConn.id, {
+          ...existing,
+          ...storeConn
+        });
+      } else {
+        // Add new store connection
+        connectionsMap.set(storeConn.id, storeConn);
+      }
+    });
+    
+    const connectionsToUse = Array.from(connectionsMap.values());
+    
+    console.log('📄 Rendering ConnectionsPage with connections:', {
+      dragDropConnectionsCount: dragDropConnections.length,
+      storeConnectionsCount: connectionsWithSelectedData.length,
+      usingStore: connectionsWithSelectedData.length > 0,
+      totalConnectionsToUse: connectionsToUse.length,
+      connections: connectionsToUse.map(c => ({
+        source: `${c.sourceColumn.table}.${c.sourceColumn.name}`,
+        target: `${c.targetColumn.table}.${c.targetColumn.name}`,
+        rule: `${c.sourceColumn.table}_VS_${c.targetColumn.table}`
+      }))
+    });
+
+    return (
+      <ConnectionsPage
+        connections={connectionsToUse}
+        onBack={() => {
+          // Reset all rule view states
+          setRuleViewStates({});
+        }}
+        onClose={() => onClose?.()}
+        onSubmitRules={handleSubmitRules}
+        connectionKeyStates={connectionKeyStates}
+        getConnectionKeyState={getConnectionKeyState}
+      />
+    );
+  }
+
+  return (
+    <div className="h-screen w-full flex flex-col bg-background text-foreground">
+      {/* Header with Add Rule Button */}
+      <RuleHeader
+        onAddRule={() => setIsAddRuleDialogOpen(true)}
+        onSave={handleSave}
+        isSaving={isSaving}
+      />
+
+      {/* Rules Tabs */}
+      <Tabs 
+        value={activeRuleId || ""} 
+               onValueChange={(newRuleId) => {
+                 setActiveRuleId(newRuleId);
+                 // Show default view when a rule is clicked (sources and connections panel)
+                 if (newRuleId) {
+                   setRuleViewState(newRuleId, { showFiltersPage: false, showConnectionsPage: false });
+                 }
+               }}
+        className="flex-1 flex flex-col min-h-0"
+      >
+        <TabsList className="m-2 self-start">
+          {rules.map(rule => (
+            <TabsTrigger key={rule.id} value={rule.id} className="relative group">
+              {rule.name}
+              <span
+                role="button"
+                aria-label={`Remove rule ${rule.name}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  removeRuleWithConnections(rule.id);
+                }}
+                className="absolute -top-1 -right-1 p-0.5 rounded-full bg-muted-foreground/20 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-opacity"
+              >
+                <X className="h-3 w-3" />
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        {rules.map(rule => {
+          const ruleViewState = getRuleViewState(rule.id);
+          
+          return (
+            <RuleTabsContent
+              key={rule.id}
+              rule={rule}
+              activeRuleId={activeRuleId}
+              ruleViewState={ruleViewState}
+              onSetRuleViewState={(updates) => setRuleViewState(rule.id, updates)}
+              activeRuleConnections={activeRuleConnections}
+              connectionKeyStates={connectionKeyStates}
+              getConnectionKeyState={getConnectionKeyState}
+              onSubmitRules={handleSubmitRules}
+              onClose={onClose}
+              currentNode={currentNode}
+              sourcesToShow={sourcesToShow}
+              selectedSourceTab={selectedSourceTab}
+              onSourceTabChange={setSelectedSourceTab}
+              onFilterSave={(filterType?: string, data?: any, sourceId?: string) => handleFilterSave(filterType, data, sourceId)}
+              filterConditionsBySource={filterConditionsBySource}
+              selectedColumnForFilter={selectedColumnForFilter}
+              onColumnSelect={setSelectedColumnForFilter}
+              onFiltersChange={(filters) => {
+                console.log('Filters changed:', filters);
+                if (selectedColumnForFilter) {
+                  const columnKey = `${selectedColumnForFilter.isSource ? 'source' : 'target'}_${selectedColumnForFilter.name}`;
+                  setFiltersByColumn(prev => ({
+                    ...prev,
+                    [columnKey]: filters[columnKey]
+                  }));
+                }
+              }}
+              dataSources={dataSources}
+              selectedTables={selectedTables}
+              onTableToggle={handleTableToggle}
+              onSave={handleSave}
+              onCancel={() => onClose?.()}
+              onShowDataGrid={handleShowDataGrid}
+              onCloseDataGrid={handleCloseDataGrid}
+              onSelectionChange={handleSelectionChange}
+              selectedMappingForPreview={selectedMappingForPreview}
+              validationResults={currentNode?.data?.node?.output?.data}
+              onConnectionRemove={handleDragDropConnectionRemove}
+              onConnectionAdd={handleDragDropConnectionAdd}
+              onDataSourceUpdate={handleDataSourceUpdate}
+              onAddSource={handleAddSource}
+              onColumnSelected={handleColumnSelected}
+              sourceRestrictedTables={sourceRestrictedTables}
+              validationRestrictedTables={validationRestrictedTables}
+              onDropZoneTablesChange={handleDropZoneTablesChange}
+              onKeyButtonClick={handleKeyButtonClick}
+              savedNode={savedNode}
+              upstreamNodes={upstreamNodes}
+            />
+          );
+        })}
+                               <div className="mx-auto max-w-[1800px]">
+                                 {/* Breadcrumb */}
+                                 <div className="flex items-center gap-2 mb-4 text-sm text-slate-600">
+                                   <button
+                                     onClick={() => setRuleViewState(rule.id, { showFilterNode: false })}
+                                     className="hover:text-slate-900 underline"
+                                   >
+                                     Back
+                                   </button>
+                                   <span>/</span>
+                                   <span className="text-slate-900 font-medium">Filter & Column Configuration</span>
+                                 </div>
+
+                                 {/* Source Tabs */}
+                                 {sourcesToShow.length > 0 ? (
+                                   <Tabs value={selectedSourceTab} onValueChange={setSelectedSourceTab} className="h-[calc(100vh-120px)] flex flex-col">
+                                     <TabsList className="mb-4">
+                                       {sourcesToShow.map((source) => (
+                                         <TabsTrigger key={source.id} value={source.id}>
+                                           {source.name}
+                                         </TabsTrigger>
+                                       ))}
+                                     </TabsList>
+
+                                     {sourcesToShow.map((source) => {
+                                       const handleFilterSave = async (filterType?: string, data?: any) => {
+                                         if (!currentNode?.data?.node?.save_node) {
+                                           toast.error('Save endpoint not configured for this node');
+                                           return;
+                                         }
+
+                                         try {
+                                           let filterData: any[] = [];
+                                           
+                                           if (filterType === "filter") {
+                                             if (!data || data.length === 0) {
+                                               toast.info("Please filter data to perform filter action");
+                                               return;
+                                             }
+                                             filterData = mapFilterDataToPayload(data, filterType);
+                                           } else if (filterType === "derive_column") {
+                                             if (!data) {
+                                               toast.info("Please select a Column to perform derive column action");
+                                               return;
+                                             }
+                                             filterData = mapFilterDataToPayload(
+                                               [{ filters: [{ id: data.id, custom_derived_columns: data }] }],
+                                               filterType
+                                             );
+                                           } else if (filterType === "custom_column") {
+                                             if (!data) {
+                                               toast.info("Please select a transformation to perform custom column action");
+                                               return;
+                                             }
+                                             filterData = mapFilterDataToPayload([{ filters: [data] }], filterType);
+                                           } else if (filterType === "conditional_column") {
+                                             if (!data) {
+                                               toast.info("Please add conditional filters to perform this action");
+                                               return;
+                                             }
+                                             filterData = mapFilterDataToPayload(
+                                               [{ filters: [{ id: data.id, ...data }] }],
+                                               filterType
+                                             );
+                                           }
+
+                                           // Get current payload
+                                           const previousPayload = currentNode?.data?.node?.payload || {};
+                                           const payload = {
+                                             ...previousPayload,
+                                             actions: "filter_generator",
+                                           };
+
+                                           // Initialize filter_conditions if needed
+                                           if (["derive_column", "custom_column", "conditional_column"].includes(filterType || "")) {
+                                             if (!Array.isArray(previousPayload.filter_conditions) || previousPayload.filter_conditions.length === 0) {
+                                               payload.filter_conditions = [];
+                                             }
+                                           }
+
+                                           // Merge filters
+                                           const existingFilters = Array.isArray(previousPayload.filters)
+                                             ? previousPayload.filters
+                                             : [];
+                                           const sanitizedExisting = sanitizeFilters(existingFilters);
+
+                                           const mergedFilters = sanitizedExisting.filter(
+                                             (existing: any) =>
+                                               !filterData.some(
+                                                 (incoming: any) => incoming.id && incoming.id === existing.id
+                                               )
+                                           );
+                                           payload.filters = [...mergedFilters, ...filterData];
+
+                                           // Save to API - this triggers transformation and generates filter_conditions
+                                           // Use create_query endpoint (EXACTLY same as filter node) for filter generation
+                                           // This is the same API call that filter node uses (node-form/index.tsx line 196)
+                                           const response = await saveNodeDetailsApi(
+                                             currentNode.data.node.create_query,
+                                             { payload: payload }
+                                           );
+
+                                           // The API response.data should be an array of filter_conditions (same as filter node)
+                                           // Each filter_condition has: { id, index, filter, filter_type }
+                                           // This matches the format expected by CodeEditor
+                                           if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+                                             const generatedFilterConditions = response.data;
+                                             
+                                             // Update local node data (same as filter node does)
+                                             const updatedPayload = {
+                                               ...previousPayload,
+                                               filters: payload.filters,
+                                               filter_conditions: generatedFilterConditions,
+                                             };
+
+                                             currentNode.data.node.payload = updatedPayload;
+                                             useFlowStore.getState().updateNodeData(currentNode.id, currentNode.data);
+                                             
+                                             // Update local state to trigger CodeEditor refresh for this source
+                                             // Pass the filter_conditions array directly to systemFilters
+                                             // CodeEditor expects initialData as array of { id, filter, filter_type }
+                                             setFilterConditionsBySource(prev => ({
+                                               ...prev,
+                                               [source.id]: generatedFilterConditions
+                                             }));
+                                             
+                                             toast.success("Filter generated successfully");
+                                           } else if (response?.data) {
+                                             // Handle case where response.data might be an object with filter_conditions property
+                                             const generatedFilterConditions = response.data.filter_conditions || response.data || [];
+                                             
+                                             if (Array.isArray(generatedFilterConditions) && generatedFilterConditions.length > 0) {
+                                               const updatedPayload = {
+                                                 ...previousPayload,
+                                                 filters: payload.filters,
+                                                 filter_conditions: generatedFilterConditions,
+                                               };
+
+                                               currentNode.data.node.payload = updatedPayload;
+                                               useFlowStore.getState().updateNodeData(currentNode.id, currentNode.data);
+                                               
+                                               setFilterConditionsBySource(prev => ({
+                                                 ...prev,
+                                                 [source.id]: generatedFilterConditions
+                                               }));
+                                               
+                                               toast.success("Filter generated successfully");
+                                             } else {
+                                               toast.success(`${filterType || 'Filter'} configuration saved, but no filter code was generated`);
+                                             }
+                                           }
+                                         } catch (error) {
+                                           console.error('Failed to save filter:', error);
+                                           toast.error(`Failed to save ${filterType || 'filter'} configuration`);
+                                         }
+                                       };
+
+                                       const nodeTemplate = currentNode?.data?.node?.template || {};
+                                       const nodeData = currentNode?.data?.node?.payload || {};
+                                       // Use filterConditionsBySource if available (after save), otherwise fall back to nodeData
+                                       // This ensures CodeEditor shows the latest generated filters
+                                       const systemFilters = (filterConditionsBySource[source.id]?.length > 0) 
+                                         ? filterConditionsBySource[source.id] 
+                                         : (Array.isArray(nodeData?.filter_conditions) ? nodeData.filter_conditions : []);
+
+                                       return (
+                                         <TabsContent key={source.id} value={source.id} className="flex-1 min-h-0 overflow-hidden">
+                                           <div className="h-full overflow-y-auto">
+                                             <MultiRowDynamicForm
+                                               template={nodeTemplate}
+                                               onFormChange={(formData) => {
+                                                 console.log('Form changed for source:', source.name, formData);
+                                               }}
+                                               data={[]}
+                                               onClickSave={handleFilterSave}
+                                               systemFilters={systemFilters}
+                                             />
+                                           </div>
+                                         </TabsContent>
+                                       );
+                                     })}
+                                   </Tabs>
+                                 ) : (
+                                   <div className="h-[calc(100vh-120px)] overflow-y-auto">
+                                     <MultiRowDynamicForm
+                                       template={currentNode?.data?.node?.template || {}}
+                                       onFormChange={(formData) => {
+                                         console.log('Form changed:', formData);
+                                       }}
+                                       data={[]}
+                                       onClickSave={(filterType?: string, data?: any) => {
+                                         console.log('Filter data saved:', { filterType, data });
+                                         toast.success(`${filterType || 'Filter'} configuration saved`);
+                                       }}
+                                       systemFilters={currentNode?.data?.node?.payload?.filter_conditions || []}
+                                     />
+                                   </div>
+                                 )}
+                               </div>
+                             </div>
+                           </div>
+                         ) : ruleViewState.showFiltersPage ? (
+                           <div className="h-full overflow-hidden">
+                      <div className="min-h-screen bg-background p-4 h-full overflow-y-auto">
+                        <div className="mx-auto max-w-[1800px]">
+                          {/* Breadcrumb */}
+                          <div className="flex items-center gap-2 mb-4 text-sm text-slate-600">
+                            <button
+                              onClick={() => setRuleViewState(rule.id, { showFiltersPage: false, showConnectionsPage: false })}
+                              className="hover:text-slate-900 underline"
+                            >
+                              Back
+                            </button>
+                            <span>/</span>
+                            <span className="text-slate-900 font-medium">Filters</span>
+                          </div>
+
+                          {/* Two Column Layout */}
+                          <div className="grid grid-cols-12 gap-4 h-[calc(100vh-120px)]">
+                            {/* Left Side - Connections List */}
+                            <div className="col-span-4 flex flex-col overflow-hidden">
+                              <div className="h-full overflow-y-auto">
+                                <ConnectionsPage
+                                  connections={activeRuleConnections}
+                                  onBack={() => {}}
+                                  onClose={() => onClose?.()}
+                                  onSubmitRules={undefined}
+                                  connectionKeyStates={connectionKeyStates}
+                                  getConnectionKeyState={getConnectionKeyState}
+                                  hideHeader={true}
+                                  hideValidationOperations={true}
+                                  onColumnSelect={setSelectedColumnForFilter}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Right Side - Filters Configuration */}
+                            <div className="col-span-8 flex flex-col overflow-hidden">
+                              <div className="h-full bg-white border border-slate-200 rounded-lg p-6 overflow-y-auto flex flex-col">
+                                <div className="mb-4">
+                                  <h3 className="text-lg font-semibold text-slate-800">Filters Configuration</h3>
+                                  <p className="text-sm text-slate-500 mt-1">Configure filters for selected columns</p>
+                                </div>
+                                <div className="flex-1 min-h-0">
+                                  <FiltersConfiguration
+                                    connections={activeRuleConnections}
+                                    selectedColumn={selectedColumnForFilter}
+                                    dataSources={dataSources}
+                                  onFiltersChange={(filters) => {
+                                    console.log('Filters changed:', filters);
+                                    // Store filters for the selected column
+                                    if (selectedColumnForFilter) {
+                                      const columnKey = `${selectedColumnForFilter.isSource ? 'source' : 'target'}_${selectedColumnForFilter.name}`;
+                                      setFiltersByColumn(prev => ({
+                                        ...prev,
+                                        [columnKey]: filters[columnKey]
+                                      }));
+                                    }
+                                  }}
+                                    onColumnSelect={setSelectedColumnForFilter}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : ruleViewState.showConnectionsPage ? (
+                    <div className="h-full overflow-hidden">
+                      <div className="min-h-screen bg-background p-0 h-full overflow-y-auto">
+                        <ConnectionsPage
+                          connections={activeRuleConnections}
+                          onBack={() => setRuleViewState(rule.id, { showConnectionsPage: false })}
+                          onClose={() => onClose?.()}
+                          onSubmitRules={handleSubmitRules}
+                          connectionKeyStates={connectionKeyStates}
+                          getConnectionKeyState={getConnectionKeyState}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="min-h-screen bg-background p-0 h-full overflow-y-auto">
+                      <div className="mx-auto max-w-[1600px]">
+                        {/* Select Sources Section - Always Visible */}
+                        <SelectSources
+                          dataSources={dataSources}
+                          selectedTables={selectedTables}
+                          onTableToggle={handleTableToggle}
+                          onSave={handleSave}
+                          onCancel={() => {
+                            // Close the drawer
+                            onClose?.();
+                          }}
+                          onFilter={() => {
+                            // Show filter node inside this rule
+                            setRuleViewState(rule.id, { showFilterNode: true });
+                          }}
+                          onNext={() => {
+                            // Show connections page inside this rule
+                            setRuleViewState(rule.id, { showConnectionsPage: true });
+                          }}
+                        />
+
+                        {/* Three Panel Layout - Always show when a rule is selected */}
+                        <div className="space-y-6 mt-4">
+                          {/* Table Selection and Connection Creation */}
+                          <div className="grid grid-cols-1 lg:grid-cols-7 gap-3 pb-0">
+                            {/* Left Panel - Source Data Objects */}
+                            <div className="lg:col-span-2">
+                              <TableListPanel
+                                title="Source Data Objects"
+                                dataSources={getFilteredDataSources()}
+                                onDataSourceUpdate={handleDataSourceUpdate}
+                                onAddSource={handleAddSource}
+                                onColumnSelected={handleColumnSelected}
+                                panelSide="left"
+                                restrictedTables={sourceRestrictedTables}
+                              />
+                            </div>
+
+                            {/* Middle Panel - Connections */}
+                            <div className="lg:col-span-3">
+                              <NewConnectionsPanel
+                                connections={activeRuleConnections as any}
+                                onConnectionRemove={handleDragDropConnectionRemove}
+                                onConnectionAdd={handleDragDropConnectionAdd}
+                                dataSources={dataSources}
+                                selectedTables={selectedTables}
+                                onShowDataGrid={handleShowDataGrid}
+                                upstreamNodes={upstreamNodes}
+                                onShowFilters={() => setRuleViewState(rule.id, { showFiltersPage: true })}
+                                onDropZoneTablesChange={handleDropZoneTablesChange}
+                                onKeyButtonClick={handleKeyButtonClick}
+                                getConnectionKeyState={getConnectionKeyState}
+                                useStoreConnections={savedNode}
+                              />
+                            </div>
+
+                            {/* Right Panel - Target Data Objects */}
+                            <div className="lg:col-span-2">
+                              <TableListPanel
+                                title="Validation Data Objects"
+                                dataSources={getFilteredDataSources()}
+                                onDataSourceUpdate={handleDataSourceUpdate}
+                                onAddSource={handleAddSource}
+                                onColumnSelected={handleColumnSelected}
+                                panelSide="right"
+                                restrictedTables={validationRestrictedTables}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Data Grid Preview - Show below when Execute is clicked */}
+                          {selectedMappingForPreview && (
+                            <div className="mt-0">
+                              <DataGridPreview
+                                mapping={selectedMappingForPreview}
+                                onClose={handleCloseDataGrid}
+                                onSelectionChange={handleSelectionChange}
+                                validationResults={currentNode?.data?.node?.output?.data}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+          );
+        })}
+        {rules.length === 0 && (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <p className="text-lg font-medium">No Validation Rules</p>
+              <p className="text-sm">Click "Add Match Rule" to get started.</p>
+            </div>
+          </div>
+        )}
+      </Tabs>
+
+      {/* Add Rule Dialog */}
+      <AddRuleDialog
+        open={isAddRuleDialogOpen}
+        onOpenChange={setIsAddRuleDialogOpen}
+        ruleName={newRuleName}
+        onRuleNameChange={setNewRuleName}
+        onAdd={addRule}
+      />
+    </div>
+  );
+}
+
+export default RuleConfiguration;
