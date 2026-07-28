@@ -1,4 +1,3 @@
-import { Node } from "@xyflow/react";
 import { FetchAPIParams } from "./types/form";
 
 export type Status = 'online' | 'offline' | 'warning' | 'error' | 'idle' | 'loading' | 'success';
@@ -12,9 +11,6 @@ export interface NodeDataType {
   content?: React.ReactNode;
   [key: string]: any; // Allow additional properties
 }
-
-export type CustomNode = Node<NodeDataType>;
-
 
 export interface Source {
   data: any[];

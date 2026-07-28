@@ -3,7 +3,10 @@ import fs from "fs";
 //import bodyParser from "body-parser";
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
+import { createRequire } from 'module'
 import tailwindcss from '@tailwindcss/vite'
+
+const require = createRequire(import.meta.url)
 
 export default defineConfig({ 
   // base: '/', // Change to '/your-subdirectory/' if deployed to a subdirectory
@@ -70,8 +73,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      react: path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      react: path.dirname(require.resolve('react/package.json')),
+      'react-dom': path.dirname(require.resolve('react-dom/package.json')),
     },
   }
 })

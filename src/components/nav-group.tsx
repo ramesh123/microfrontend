@@ -16,52 +16,22 @@ import {
 } from '@/components/ui/sidebar'
 import * as React from 'react'
 import { ChevronRight, ChevronLeft, MousePointer2 } from 'lucide-react'
-import { AiChatDialog } from '@/pages/FlowPage/Aichatbox'
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import CustomBadge from '@/components/ui/custom-badge'
 import { useCollapsedSelection } from '@/components/CollapsedSelectionContext'
 // Inline collapsed behavior will be handled without dropdowns or tooltips
 import type { NavCollapsible, NavItem, NavLink, NavGroup } from '@/types/sidebar'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 import { cn } from '@/lib/utils'
 
 export function NavGroup({ title, children }: NavGroup) {
   const { state } = useSidebar()
   const { pathname } = useLocation()
   const { selectedKey } = useCollapsedSelection()
-  const [aiOpen, setAiOpen] = React.useState(false)
 
   return (
     <>
       <SidebarGroup>
-        {/* AI button / search — full bar when expanded, open dialog when collapsed */}
-        {state === 'collapsed' ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setAiOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") setAiOpen(true);
-                  }}
-                  className="collapsed-ai-search h-8 w-8 mx-auto flex items-center justify-center rounded-md overflow-visible cursor-pointer"
-                >
-                  <span className="collapsed-ai-orb" aria-hidden="true" />
-                </div>
-              </TooltipTrigger>
-
-              <TooltipContent side="right" align="center">
-                Ask AI
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <div className="!p-0">
-          </div>
-        )}
       {/* <SidebarGroupLabel>{title}</SidebarGroupLabel> */}
       <SidebarMenu>
         {children.map((item, idx) => {
@@ -91,7 +61,6 @@ export function NavGroup({ title, children }: NavGroup) {
         })}
       </SidebarMenu>
       </SidebarGroup>
-      <AiChatDialog open={aiOpen} onOpenChange={setAiOpen} mode={'PIPELINE'} />
     </>
   )
 }
