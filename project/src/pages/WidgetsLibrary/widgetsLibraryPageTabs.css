@@ -1,0 +1,56 @@
+/* Widgets Library tabs — primary border underline on active tab only (original style) */
+
+.widgets-library-page-tabs [data-slot="tabs-list"] {
+  border-bottom: 1px solid var(--border, #e5e7eb) !important;
+  box-shadow: none !important;
+}
+
+.widgets-library-page-tabs [data-slot="tabs-trigger"][data-state="inactive"],
+.widgets-library-page-tabs [data-slot="tabs-trigger"]:not([data-state="active"]) {
+  margin-bottom: -1px !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 2px solid transparent !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.widgets-library-page-tabs [data-slot="tabs-trigger"][data-state="active"] {
+  margin-bottom: -1px !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 2px solid var(--primary) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--primary) !important;
+}
+
+.widgets-library-page-tabs [data-slot="tabs-trigger"][data-state="active"] svg {
+  color: var(--primary) !important;
+}
+
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-page-tabs [data-slot="tabs-trigger"][data-state="inactive"],
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-page-tabs [data-slot="tabs-trigger"]:not([data-state="active"]) {
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 2px solid transparent !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-image: none !important;
+}
+
+html:is(.blue-light-g, .blue-dark-g) .widgets-library-page-tabs [data-slot="tabs-trigger"][data-state="active"] {
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 2px solid var(--primary, var(--neu-blue, #2a74d5)) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--primary, var(--neu-blue, #2a74d5)) !important;
+}

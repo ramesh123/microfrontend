@@ -1,14 +1,9 @@
-[submodule "container-app"]
-	path = container-app
-	url = git@github.com:org/container-app.git
-	branch = container-app
+[submodule "container"]
+	path = container
+	url = git@github.com:org/container.git
+	branch = container
 
-[submodule "workflow-app"]
-	path = workflow-app
-	url = git@github.com:org/workflow-app.git
-	branch = workflow-app
-
-[submodule "shared"]
-	path = shared
-	url = git@github.com:org/shared.git
-	branch = shared
+[submodule "workflow"]
+	path = workflow
+	url = git@github.com:org/workflow.git
+	branch = workflow

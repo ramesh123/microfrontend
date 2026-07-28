@@ -1,0 +1,955 @@
+/**
+ * Rule chain React Flow surface.
+ * Canvas + node tweaks aligned with main workflow / draft canvas reference (light dot grid, neutral nodes).
+ */
+
+/* ThingsBoard CE–style canvas: light gray workspace, subtle dot grid. */
+.rule-chain-flow-surface[data-color-mode="light"] .react-flow__renderer,
+.rule-chain-flow-surface[data-color-mode="light"] .react-flow__pane {
+  background-color: #eceff1 !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__renderer,
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__pane {
+  /* Slightly below card tone so node outlines read clearly */
+  background-color: hsl(222 47% 9%) !important;
+}
+
+.rule-chain-flow-surface .react-flow__controls {
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__controls-button {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__controls-button:hover {
+  background: hsl(var(--muted)) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__controls-button svg {
+  fill: hsl(var(--foreground)) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .react-flow__controls-button {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .react-flow__controls-button:hover {
+  background: hsl(var(--muted)) !important;
+}
+
+.rule-chain-flow-surface .react-flow__minimap {
+  background: hsl(var(--card)) !important;
+}
+
+/* Edges behind nodes (ThingsBoard-style — wires only visible outside cards). */
+.rule-chain-flow-surface .react-flow__renderer .react-flow__edges {
+  z-index: 1 !important;
+}
+
+.rule-chain-flow-surface .react-flow__renderer .react-flow__nodes {
+  z-index: 3 !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__renderer .react-flow__edges {
+  z-index: 1 !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__renderer .react-flow__nodes {
+  z-index: 3 !important;
+}
+
+.rule-chain-flow-surface .react-flow__node {
+  overflow: visible !important;
+}
+
+/* Opaque node shell in dark — blocks edge strokes under the card. */
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__node:has(.rule-chain-df-node) {
+  isolation: isolate;
+}
+
+/* Link labels on the wire, behind nodes (raised when an edge is selected for edit/delete). */
+.rule-chain-flow-surface {
+  --rc-edge-label-z: 2;
+}
+
+.rule-chain-flow-surface .react-flow__edgelabel-renderer {
+  z-index: var(--rc-edge-label-z) !important;
+  pointer-events: none;
+}
+
+.rule-chain-flow-surface[data-edge-selected="true"] {
+  --rc-edge-label-z: 6;
+}
+
+.rule-chain-flow-surface .react-flow__edgelabel-renderer .rule-chain-edge-actions {
+  pointer-events: all;
+}
+
+.rule-chain-flow-surface .react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rule-chain-flow-surface .react-flow__edge.selected .react-flow__edge-path,
+.rule-chain-flow-surface .rule-chain-edge-selected {
+  stroke: #e53935 !important;
+  stroke-width: 2.5px !important;
+}
+
+.rule-chain-edge-action-btn svg {
+  color: #fff !important;
+}
+
+/* Input node: never draggable */
+.rule-chain-flow-surface .react-flow__node:has(.rule-chain-input-accent) {
+  cursor: default !important;
+}
+
+.rule-chain-flow-surface .react-flow__node:has(.rule-chain-input-accent) .react-flow__node-default,
+.rule-chain-flow-surface .react-flow__node:has(.rule-chain-input-accent) > div {
+  cursor: default !important;
+}
+
+@keyframes rule-chain-input-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.95;
+    filter: brightness(1.08);
+  }
+}
+
+/* Rule nodes: glassy stack + segment-colored frame on all edges + radial wash (uses --tb-seg from node data). */
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  border-color: color-mix(in srgb, var(--tb-seg, #e5e7eb) 44%, #e5e7eb) !important;
+  background-color: color-mix(in srgb, var(--tb-seg, #ffffff) 11%, #ffffff) !important;
+  background-image: linear-gradient(
+    155deg,
+    color-mix(in srgb, #ffffff 86%, var(--tb-seg, #e5e7eb)) 0%,
+    color-mix(in srgb, #ffffff 96%, var(--tb-seg, #e5e7eb)) 52%,
+    color-mix(in srgb, #ffffff 92%, var(--tb-seg, #e5e7eb)) 100%
+  ) !important;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  transition:
+    box-shadow 0.28s ease,
+    border-color 0.28s ease,
+    filter 0.28s ease;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border-radius: inherit;
+  padding: 3px;
+  background: conic-gradient(
+    from 0.125turn at 50% 50%,
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 18%, transparent),
+    var(--tb-seg, #64748b),
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 18%, transparent),
+    var(--tb-seg, #64748b),
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 18%, transparent),
+    var(--tb-seg, #64748b),
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 18%, transparent),
+    var(--tb-seg, #64748b),
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 18%, transparent)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0.88;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    85% 70% at 50% 28%,
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 22%, transparent),
+    transparent 68%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body .algo-node-icon-wrapper {
+  position: relative;
+  z-index: 2;
+}
+
+/* Ligatures only: `<img>` icons use `filter` from RuleNodeIcon (invert in dark); a flat drop-shadow here would override that. */
+.rule-chain-flow-surface .rule-chain-tb-node-body.algo-node-body .algo-node-icon.rule-chain-material-ligature {
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.1));
+}
+
+.rule-chain-flow-surface[data-color-mode="light"]
+  .algo-node:hover
+  .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body:not(.selected) {
+  box-shadow:
+    0 6px 22px -6px color-mix(in srgb, var(--tb-seg, #64748b) 32%, transparent),
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+  filter: saturate(1.06);
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body.selected {
+  box-shadow:
+    0 0 0 2px var(--tb-seg, #0370f1),
+    0 10px 28px -8px color-mix(in srgb, var(--tb-seg, #0370f1) 38%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--tb-seg, #64748b) 58%, #64748b) !important;
+  background-color: hsl(var(--card)) !important;
+  background-image: none !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition:
+    box-shadow 0.28s ease,
+    border-color 0.28s ease;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from 0.125turn at 50% 50%,
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 72%, #94a3b8),
+    color-mix(in srgb, var(--tb-seg, #cbd5e1) 88%, #e2e8f0),
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 72%, #94a3b8),
+    color-mix(in srgb, var(--tb-seg, #cbd5e1) 88%, #e2e8f0),
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 72%, #94a3b8),
+    color-mix(in srgb, var(--tb-seg, #cbd5e1) 88%, #e2e8f0),
+    color-mix(in srgb, var(--tb-seg, #94a3b8) 72%, #94a3b8),
+    color-mix(in srgb, var(--tb-seg, #cbd5e1) 88%, #e2e8f0)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0.92;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: calc(0.5rem - 2px);
+  background: hsl(var(--card));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body .algo-node-icon-wrapper {
+  position: relative;
+  z-index: 2;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-tb-node-body.algo-node-body .algo-node-icon.rule-chain-material-ligature {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"]
+  .algo-node:hover
+  .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body:not(.selected) {
+  border-color: color-mix(in srgb, var(--tb-seg, #94a3b8) 70%, #94a3b8) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 8px 26px -8px color-mix(in srgb, var(--tb-seg, #64748b) 50%, transparent),
+    0 2px 10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body.selected {
+  border-color: var(--tb-seg, #60a5fa) !important;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--tb-seg, #60a5fa) 55%, transparent),
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 12px 32px -10px color-mix(in srgb, var(--tb-seg, #60a5fa) 48%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Chain input: ingress — brighter frame on all edges + slow pulse on the accent ring. */
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-node-body.rule-chain-input-accent.rule-chain-tb-node-body.algo-node-body {
+  border-color: color-mix(in srgb, var(--tb-seg, #0370f1) 48%, #e5e7eb) !important;
+  background-color: color-mix(in srgb, var(--tb-seg, #0370f1) 12%, #ffffff) !important;
+  background-image: linear-gradient(
+    145deg,
+    color-mix(in srgb, #ffffff 78%, var(--tb-seg, #0370f1)) 0%,
+    color-mix(in srgb, #ffffff 94%, var(--tb-seg, #0370f1)) 100%
+  ) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-node-body.rule-chain-input-accent.rule-chain-tb-node-body.algo-node-body::before {
+  padding: 4px;
+  background: conic-gradient(
+    from 0.125turn at 50% 50%,
+    #38bdf8,
+    var(--tb-seg, #0370f1),
+    #818cf8,
+    #38bdf8,
+    var(--tb-seg, #0370f1),
+    #818cf8,
+    #38bdf8,
+    var(--tb-seg, #0370f1),
+    #818cf8
+  );
+  opacity: 0.9;
+  animation: rule-chain-input-glow 3.2s ease-in-out infinite;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-body.rule-chain-input-accent.rule-chain-tb-node-body.algo-node-body {
+  border-color: color-mix(in srgb, var(--tb-seg, #0370f1) 52%, hsl(var(--border))) !important;
+  background-color: color-mix(in srgb, var(--tb-seg, #0370f1) 18%, hsl(var(--card))) !important;
+  background-image: linear-gradient(
+    155deg,
+    color-mix(in srgb, hsl(var(--card)) 82%, var(--tb-seg, #0370f1)) 0%,
+    color-mix(in srgb, hsl(var(--card)) 92%, var(--tb-seg, #0370f1)) 100%
+  ) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-body.rule-chain-input-accent.rule-chain-tb-node-body.algo-node-body::before {
+  padding: 4px;
+  background: conic-gradient(
+    from 0.125turn at 50% 50%,
+    #38bdf8,
+    var(--tb-seg, #60a5fa),
+    #a78bfa,
+    #38bdf8,
+    var(--tb-seg, #60a5fa),
+    #a78bfa,
+    #38bdf8,
+    var(--tb-seg, #60a5fa),
+    #a78bfa
+  );
+  animation: rule-chain-input-glow 3.2s ease-in-out infinite;
+}
+
+/* Floating toolbar: white pill above node (same idea as workflow canvas). */
+.rule-chain-flow-surface .rule-chain-node-toolbar.algo-node-actions {
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-toolbar.algo-node-actions {
+  background-color: hsl(var(--popover)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Label under node: small, centered, high-contrast (reference screenshot). */
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-node-label.algo-node-label {
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-label.algo-node-label {
+  color: hsl(var(--foreground));
+  font-size: 11px;
+}
+
+/* Full grey circles on the node edge, slightly overlapping the card (reference). */
+.rule-chain-flow-surface .rule-chain-handle-target.algo-handle.react-flow__handle-target,
+.rule-chain-flow-surface .rule-chain-handle-source.algo-handle.react-flow__handle-source {
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 10px !important;
+  min-height: 10px !important;
+  max-width: 10px !important;
+  max-height: 10px !important;
+  border-radius: 9999px !important;
+  transform: translateY(-50%) !important;
+  background-color: #9ca3af !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-handle-target.algo-handle.react-flow__handle-target,
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-handle-source.algo-handle.react-flow__handle-source {
+  border-color: hsl(var(--card)) !important;
+  background-color: #94a3b8 !important;
+}
+
+.rule-chain-flow-surface .rule-chain-handle-target.algo-handle.react-flow__handle-target {
+  left: -5px !important;
+}
+
+.rule-chain-flow-surface .rule-chain-handle-source.algo-handle.react-flow__handle-source {
+  right: -5px !important;
+}
+
+.rule-chain-flow-surface .rule-chain-node-body.algo-node-body:hover .rule-chain-handle-target,
+.rule-chain-flow-surface .rule-chain-node-body.algo-node-body:hover .rule-chain-handle-source,
+.rule-chain-flow-surface .rule-chain-handle-target:hover,
+.rule-chain-flow-surface .rule-chain-handle-source:hover {
+  background-color: #0370f1 !important;
+}
+
+/* Link label pill on the wire (ThingsBoard: Failure / False / True). */
+.rule-chain-edge-label-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.rule-chain-edge-relation-badge {
+  display: inline-block;
+  max-width: 22rem;
+  white-space: nowrap;
+  padding: 3px 12px;
+  border-radius: 9999px;
+  border: 2px solid #1565c0;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #1565c0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  opacity: 1;
+  /* Opaque halo masks the stroke under the pill (light + dark). */
+  box-shadow: 0 0 0 3px #ffffff;
+}
+
+/* Node detail tooltip — segment-colored border (right of node). */
+.rule-chain-node-detail-tooltip {
+  box-shadow:
+    0 4px 16px -2px color-mix(in srgb, var(--rc-tip-accent, #1e88e5) 32%, transparent),
+    0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.rule-chain-node-detail-tooltip-subtitle {
+  color: color-mix(in srgb, var(--rc-tip-accent, #64748b) 42%, #64748b);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-detail-tooltip {
+  box-shadow:
+    0 4px 18px -2px color-mix(in srgb, var(--rc-tip-accent, #60a5fa) 38%, transparent),
+    0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-detail-tooltip-subtitle {
+  color: color-mix(in srgb, var(--rc-tip-accent, #94a3b8) 55%, #94a3b8);
+}
+
+/* Canvas node icons: segment tint from `--tb-seg` on the node body (no inline color needed). */
+.rule-chain-flow-surface .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body .algo-node-icon {
+  color: var(--tb-seg, #64748b);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-node-body.rule-chain-tb-node-body.algo-node-body .algo-node-icon.rule-chain-material-ligature {
+  color: color-mix(in srgb, var(--tb-seg, #94a3b8) 26%, #f8fafc) !important;
+}
+
+/**
+ * Palette + configure sheet sit outside `.rule-chain-flow-surface`; lighten segment-colored glyphs on dark themes.
+ * Match ThemeProvider root classes (system dark uses `.dark`).
+ */
+html:is(.dark, .orange-dark, .blue-dark, .blue-dark-g, .purple-dark) .rule-chain-palette-icon-host .rule-chain-palette-icon.rule-chain-material-ligature {
+  color: color-mix(in srgb, var(--seg-color, #f97316) 34%, #f8fafc) !important;
+}
+
+/*
+ * Monaco script errors — ThingsBoard-style whole-line tint + gutter square (RuleNodeTbelJsScriptTabs).
+ * Unscoped so dialogs / portals still pick up styles.
+ */
+.monaco-editor .rule-chain-script-error-line {
+  background-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+.monaco-editor.vs-dark .rule-chain-script-error-line {
+  background-color: rgba(248, 113, 113, 0.14) !important;
+}
+
+.monaco-editor .margin-view-overlays .rule-chain-script-error-glyph {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 2px;
+}
+
+.monaco-editor .margin-view-overlays .rule-chain-script-error-glyph::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background-color: #dc2626;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='%23fff' stroke-width='1.4' stroke-linecap='round' d='M3 3l6 6M9 3L3 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 7px 7px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+/* —— Datafusion-style horizontal rule nodes (theme-aware light / dark) —— */
+.rule-chain-flow-surface .rule-chain-df-node.algo-node {
+  width: 11rem;
+  min-width: 11rem;
+  max-width: 11rem;
+  align-items: stretch;
+}
+
+.rule-chain-flow-surface .rule-chain-df-body.algo-node-body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 11rem;
+  min-width: 11rem;
+  max-width: 11rem;
+  min-height: 3.25rem;
+  height: auto;
+  padding: 0;
+  overflow: visible;
+  border-radius: 0.5rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+/* DF layout: keep glassy segment ring from .rule-chain-node-body (do not hide ::before/::after). */
+
+.rule-chain-flow-surface .rule-chain-df-body .rule-chain-df-icon-col,
+.rule-chain-flow-surface .rule-chain-df-body .rule-chain-df-label-col {
+  position: relative;
+  z-index: 2;
+}
+
+/* —— Icon column (segment tint per theme) —— */
+.rule-chain-flow-surface .rule-chain-df-icon-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem 0 0 0.5rem;
+  padding: 0.35rem 0.25rem 0.5rem;
+  gap: 0.1rem;
+  border-right: 1px solid transparent;
+}
+
+/* Vibrant category strip (Datafusion reference). */
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-icon-col {
+  background: var(--tb-seg, #1e88e5);
+  border-right-color: color-mix(in srgb, var(--tb-seg, #bdbdbd) 40%, #e0e0e0);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-icon-col {
+  background: var(--rc-icon-col-dark, var(--tb-seg, #1e88e5));
+  border-right-color: color-mix(in srgb, var(--tb-seg, #94a3b8) 45%, #475569);
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-icon-col .rule-chain-df-icon.algo-node-icon {
+  width: auto;
+  height: auto;
+  color: #ffffff !important;
+  filter: none;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-icon-col .rule-chain-df-icon.algo-node-icon img {
+  filter: brightness(0) invert(1);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-icon-col .rule-chain-df-icon.algo-node-icon {
+  width: auto;
+  height: auto;
+  color: #ffffff !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-icon-col .rule-chain-df-icon.algo-node-icon img {
+  filter: brightness(0) invert(1);
+}
+
+.rule-chain-flow-surface .rule-chain-df-badge {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 1rem;
+  padding: 0 0.15rem;
+  border-radius: 2px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: #fff;
+  letter-spacing: 0.02em;
+  background-color: color-mix(in srgb, var(--tb-seg, #64748b) 72%, #000000);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* —— Label column —— */
+.rule-chain-flow-surface .rule-chain-df-label-col {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.4rem 0.55rem 0.4rem 0.45rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-label-col {
+  background: #ffffff;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-body.rule-chain-node-body {
+  background-color: hsl(var(--card)) !important;
+  background-image: none !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-label-col {
+  background: hsl(var(--card));
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #212121;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #f1f5f9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-subtitle {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #757575;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-subtitle {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* —— Chain input node (primary accent) —— */
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-body.rule-chain-input-accent {
+  border-color: color-mix(in srgb, var(--tb-seg, #1e88e5) 42%, #90caf9) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-body.rule-chain-input-accent {
+  border-color: color-mix(in srgb, var(--tb-seg, #42a5f5) 72%, #60a5fa) !important;
+}
+
+/* —— Connection ports —— */
+.rule-chain-flow-surface .rule-chain-df-handle.algo-handle {
+  width: 9px !important;
+  height: 9px !important;
+  min-width: 9px !important;
+  min-height: 9px !important;
+  max-width: 9px !important;
+  max-height: 9px !important;
+  transform: translateY(-50%) !important;
+  border-width: 2px !important;
+  border-style: solid !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-handle.rule-chain-handle-target-in {
+  background-color: #1e88e5 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-handle.rule-chain-handle-target-in {
+  background-color: #42a5f5 !important;
+  border-color: hsl(var(--card)) !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.rule-chain-flow-surface .rule-chain-df-handle.rule-chain-handle-source {
+  background-color: var(--rc-port-color, #3b82f6) !important;
+  border-color: var(--rc-port-color, #3b82f6) !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-handle.rule-chain-handle-source {
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-handle.rule-chain-handle-source {
+  box-shadow: 0 0 0 2px hsl(var(--card));
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-handle.rule-chain-handle-source-success {
+  background-color: #4caf50 !important;
+  border-color: #ffffff !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-handle.rule-chain-handle-source-success {
+  background-color: #66bb6a !important;
+  border-color: hsl(var(--card)) !important;
+}
+
+.rule-chain-flow-surface .rule-chain-df-handle.rule-chain-handle-target {
+  left: -5px !important;
+}
+
+.rule-chain-flow-surface .rule-chain-df-handle.rule-chain-handle-source {
+  right: -5px !important;
+  top: 50% !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-handle.rule-chain-handle-source-out {
+  background-color: #4caf50 !important;
+  border-color: #ffffff !important;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-handle.rule-chain-handle-source-out {
+  background-color: #66bb6a !important;
+  border-color: hsl(var(--card)) !important;
+}
+
+.rule-chain-flow-surface .rule-chain-df-body:hover .rule-chain-df-handle,
+.rule-chain-flow-surface .rule-chain-df-handle:hover {
+  filter: brightness(1.1);
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-body:hover .rule-chain-df-handle,
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-df-handle:hover {
+  box-shadow:
+    0 0 0 2px #ffffff,
+    0 0 0 4px rgba(75, 123, 236, 0.35);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-body:hover .rule-chain-df-handle,
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-df-handle:hover {
+  box-shadow:
+    0 0 0 2px hsl(var(--card)),
+    0 0 0 4px rgba(96, 165, 250, 0.4);
+}
+
+/* —— Edges (ThingsBoard medium gray) —— */
+.rule-chain-flow-surface[data-color-mode="light"] .react-flow__edge-path {
+  stroke: #808080 !important;
+  stroke-width: 2px;
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .react-flow__edge-path {
+  stroke: #9ca3af !important;
+  stroke-width: 2px;
+}
+
+.rule-chain-flow-surface[data-color-mode="light"] .rule-chain-edge-relation-badge {
+  background-color: #ffffff !important;
+  border-color: #1565c0;
+  color: #1565c0;
+  box-shadow:
+    0 0 0 3px #ffffff,
+    0 1px 3px rgba(15, 23, 42, 0.1);
+}
+
+.rule-chain-flow-surface[data-color-mode="dark"] .rule-chain-edge-relation-badge {
+  background-color: hsl(var(--card)) !important;
+  border-color: #42a5f5;
+  color: #90caf9;
+  box-shadow:
+    0 0 0 3px hsl(var(--card)),
+    0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+/* —— Palette sidebar (theme-aware, compact width) —— */
+.rule-chain-palette-sidebar {
+  width: 100%;
+  max-width: 100%;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+@media (min-width: 768px) {
+  .rule-chain-palette-sidebar {
+    width: 14.5rem;
+    max-width: 14.5rem;
+    flex-shrink: 0;
+    border-bottom: none;
+    border-right: 1px solid hsl(var(--border));
+  }
+}
+
+.rule-chain-palette-sidebar .rule-chain-palette-search-wrap {
+  flex-shrink: 0;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  padding: 0.5rem 0.625rem;
+}
+
+.rule-chain-palette-sidebar .rule-chain-palette-accordion {
+  border: none;
+}
+
+.rule-chain-palette-sidebar .rule-chain-palette-accordion-item,
+.rule-chain-palette-sidebar .rule-chain-palette-accordion [data-slot="accordion-item"] {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  box-shadow: none;
+}
+
+.rule-chain-palette-sidebar .rule-chain-palette-accordion-trigger:hover,
+.rule-chain-palette-sidebar .rule-chain-palette-accordion button[data-slot="accordion-trigger"]:hover {
+  background: hsl(var(--muted) / 0.55);
+}
+
+.rule-chain-palette-sidebar .rule-chain-palette-accordion-content,
+.rule-chain-palette-sidebar .rule-chain-palette-accordion [data-slot="accordion-content"] {
+  background: hsl(var(--muted) / 0.28);
+}
+
+.rule-chain-palette-sidebar[data-color-mode="dark"] .rule-chain-palette-accordion-content,
+.rule-chain-palette-sidebar[data-color-mode="dark"] .rule-chain-palette-accordion [data-slot="accordion-content"] {
+  background: hsl(var(--muted) / 0.12);
+}
+
+/* Palette node cards */
+.rule-chain-palette-card {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0.375rem;
+  cursor: grab;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.rule-chain-palette-card:hover {
+  border-color: hsl(var(--border));
+  box-shadow: 0 2px 6px rgb(0 0 0 / 8%);
+}
+
+.rule-chain-palette-sidebar[data-color-mode="dark"] .rule-chain-palette-card {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+}
+
+.rule-chain-palette-sidebar[data-color-mode="dark"] .rule-chain-palette-card:hover {
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+.rule-chain-palette-card-icon-col {
+  display: flex;
+  width: 2.5rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  border-right: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+}
+
+.rule-chain-palette-card-icon-area {
+  display: flex;
+  min-height: 2.125rem;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+.rule-chain-palette-card-service-icon {
+  font-size: 1.125rem !important;
+  line-height: 1 !important;
+}
+
+.rule-chain-palette-card-badge {
+  display: flex;
+  height: 0.875rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+}
+
+.rule-chain-palette-card-body {
+  min-width: 0;
+  flex: 1;
+  padding: 0.375rem 0.4375rem;
+}
+
+.rule-chain-palette-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: hsl(var(--foreground));
+}
+
+.rule-chain-palette-card-desc {
+  display: -webkit-box;
+  margin-top: 0.125rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 9px;
+  line-height: 1.35;
+  color: hsl(var(--muted-foreground));
+}

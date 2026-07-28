@@ -3,13 +3,22 @@
   "private": true,
   "version": "0.0.0",
   "workspaces": [
-    "container-app",
-    "workflow-app",
-    "shared"
+    "container",
+    "workflow"
   ],
   "scripts": {
-    "dev:workflow": "npm run build:watch --workspace workflow-app",
-    "preview:workflow": "npm run preview --workspace workflow-app",
-    "dev:container": "npm run dev --workspace container-app"
+    "dev:workflow": "npm run dev --workspace workflow",
+    "dev:container": "npm run dev --workspace container",
+    "build": "npm run build --workspaces --if-present",
+    "serve:container": "npx serve -s container/build -l 3000",
+    "serve:workflow": "npx serve -s workflow/build -l 5001",
+    "serve:all": "concurrently --names \"container,workflow\" --prefix-colors \"blue,cyan\" \"npm run serve:container\" \"npm run serve:workflow\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "serve": "^14.2.1",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.1.0"
   }
 }

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="108" role="img">
+  <title>CoAP</title>
+  <g transform="translate(32 32) scale(1.85 2.15) translate(-32 -32)">
+    <path d="M25 40 Q15 32 25 24" fill="none" stroke="#FB923C" stroke-width="4.1" stroke-linecap="round"/>
+    <path d="M39 40 Q49 32 39 24" fill="none" stroke="#FB923C" stroke-width="4.1" stroke-linecap="round"/>
+    <circle cx="32" cy="32" r="7.5" fill="#EA580C"/>
+    <text x="32" y="36" text-anchor="middle" fill="#FFF7ED" font-size="9" font-weight="700" font-family="sans-serif">C</text>
+  </g>
+</svg>
