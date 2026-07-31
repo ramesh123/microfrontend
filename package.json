@@ -2,16 +2,22 @@
   "name": "micro-frontend",
   "private": true,
   "version": "0.0.0",
+  "packageManager": "yarn@3.6.4",
   "workspaces": [
     "container",
     "workflow"
   ],
+  "resolutions": {
+    "webpack": "5.105.4"
+  },
   "scripts": {
-    "dev:workflow": "npm run dev --workspace workflow",
-    "dev:container": "npm run dev --workspace container",
-    "build": "npm run build --workspaces --if-present",
-    "serve:container": "npx serve -s container/build -l 3000",
-    "serve:workflow": "npx serve -s workflow/build -l 5001",
+    "dev": "concurrently --names \"container,workflow\" --prefix-colors \"blue,cyan\" \"npm run dev:container\" \"npm run dev:workflow\"",
+    "dev:container": "corepack yarn workspace container run dev --port 3000 --strictPort",
+    "dev:workflow": "corepack yarn workspace workflow run dev --port 3001 --strictPort",
+    "build": "corepack yarn workspaces foreach --all -pvi -j 4 run build",
+    "prepare": "corepack yarn workspaces foreach --all -pvi -j 4 run prepare",
+    "serve:container": "npx serve -s container/dist -l 3000",
+    "serve:workflow": "npx serve -s workflow/dist -l 3001",
     "serve:all": "concurrently --names \"container,workflow\" --prefix-colors \"blue,cyan\" \"npm run serve:container\" \"npm run serve:workflow\""
   },
   "devDependencies": {
