@@ -1,9 +1,9 @@
 [submodule "container"]
 	path = container
 	url = git@github.com:org/container.git
-	branch = container
+	branch = feature/mfa-container
 
 [submodule "workflow"]
 	path = workflow
 	url = git@github.com:org/workflow.git
-	branch = workflow
+	branch = feature/mfa-workflow
