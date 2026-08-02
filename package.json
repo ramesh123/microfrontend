@@ -99,6 +99,7 @@
   "devDependencies": {
     "@eslint/js": "^9.25.0",
     "@faker-js/faker": "^9.9.0",
+    "@originjs/vite-plugin-federation": "^1.4.1",
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.15.17",
     "@types/react": "^19.1.2",

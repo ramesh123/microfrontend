@@ -5,12 +5,28 @@ import react from '@vitejs/plugin-react-swc'
 import path from 'path'
 import { createRequire } from 'module'
 import tailwindcss from '@tailwindcss/vite'
+import federation from '@originjs/vite-plugin-federation'
 
 const require = createRequire(import.meta.url)
 
-export default defineConfig({ 
+export default defineConfig({
   // base: '/', // Change to '/your-subdirectory/' if deployed to a subdirectory
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    federation({
+      name: 'container',
+      remotes: {
+        workflow: 'http://localhost:3001/assets/remoteEntry.js',
+      },
+      shared: ['react', 'react-dom', 'react-router', 'react-router-dom'],
+    }),
+  ],
+  build: {
+    target: 'esnext',
+    minify: false,
+    cssCodeSplit: false,
+  },
   server: {
     port: 5317,
     // setupMiddlewares(middlewares, server) {

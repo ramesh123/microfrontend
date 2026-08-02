@@ -12,6 +12,7 @@ import { getIconForMenuItem } from "@/navigation/menuItemIcons";
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
 import OrganizationSelection from "./pages/OrganizationSelection";
 import ComingSoonPage from "./pages/ComingSoonPage";
+import RemoteWorkflowApp from "./components/RemoteWorkflowApp";
 
 // Use lazyWithRetry for all lazy imports to handle chunk load errors after deployments
 const Dashboard = lazy(() => lazyWithRetry(() => import("./pages/HomePage/components/dashboard"), 'Dashboard'))
@@ -120,8 +121,9 @@ const IMPLEMENTED_PATH_ELEMENTS: Record<string, React.ReactNode> = {
 };
 
 const IMPLEMENTED_PATHS = new Set(Object.keys(IMPLEMENTED_PATH_ELEMENTS));
-
+console.log("IMPLEMENTED_PATHS",IMPLEMENTED_PATHS);
 const isPathImplemented = (path: string): boolean => IMPLEMENTED_PATHS.has(path);
+console.log("isPathImplemented",isPathImplemented);
 
 const getSourceMenuItems = (
   activePerspective: { menu_items?: MenuItem[] } | null,
@@ -148,7 +150,7 @@ const convertPerspectiveMenuToRoutes = (menuItems: MenuItem[], perspectiveId?: s
   const processMenuItem = (item: MenuItem, ancestorHint?: string) => {
     const hint = iotGatewayIconPathHint(item, ancestorHint);
     const childAncestor = nextIotGatewayAncestorHint(item, ancestorHint);
-
+console.log("itemitem",item);
     if (item.children) {
       item.children.forEach((child) => processMenuItem(child, childAncestor));
     }
@@ -340,6 +342,14 @@ export const useAllRoutes = (): RouteConfig[] => {
             ...route,
             element: wrapRouteElement(route.element),
           })),
+          // Any business path container doesn't own is delegated to the
+          // federated workflow remote, rendered inside this same Layout
+          // (Header/Sidebar/Footer stay from container).
+          {
+            path: "*",
+            element: wrapRouteElement(<RemoteWorkflowApp />),
+            isPrivate: true,
+          },
         ],
       },
       {
