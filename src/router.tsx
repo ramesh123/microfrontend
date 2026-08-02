@@ -706,8 +706,10 @@ function DynamicFormCreatedRoutePlaceholder() {
   );
 }
 
-// Generate all routes including perspective menu paths
-export const useAllRoutes = (): RouteConfig[] => {
+// Business page routes only — no Layout wrapper. Shared by useAllRoutes()
+// (standalone app) and by WorkflowRemoteContent (exposed to the container
+// host via Module Federation, which supplies its own Header/Sidebar shell).
+export const useWorkflowContentRoutes = (): RouteConfig[] => {
   const perspectiveRoutes = usePerspectiveRoutes();
   const createdFormMenuItems = useDynamicFormAssignmentStore((state) => state.createdMenuItems);
   const formAssignmentsByPath = useDynamicFormAssignmentStore((state) => state.assignmentsByPath);
@@ -734,6 +736,28 @@ export const useAllRoutes = (): RouteConfig[] => {
         isPrivate: true,
       }));
 
+    return [
+      ...staticProtectedRoutes.map((route) => ({
+        ...route,
+        element: wrapRouteElement(route.element),
+      })),
+      ...menuRoutes.map((route) => ({
+        ...route,
+        element: wrapRouteElement(route.element),
+      })),
+      ...dynamicFormRoutes.map((route) => ({
+        ...route,
+        element: wrapRouteElement(route.element),
+      })),
+    ];
+  }, [perspectiveRoutes, createdFormMenuItems, formAssignmentsByPath]);
+};
+
+// Generate all routes including perspective menu paths
+export const useAllRoutes = (): RouteConfig[] => {
+  const contentRoutes = useWorkflowContentRoutes();
+
+  return useMemo(() => {
     const routes: RouteConfig[] = [
       ...baseRoutes,
       // Protected routes with layout
@@ -746,18 +770,7 @@ export const useAllRoutes = (): RouteConfig[] => {
             index: true,
             element: <Navigate to="/landing" replace />,
           },
-          ...staticProtectedRoutes.map((route) => ({
-            ...route,
-            element: wrapRouteElement(route.element),
-          })),
-          ...menuRoutes.map((route) => ({
-            ...route,
-            element: wrapRouteElement(route.element),
-          })),
-          ...dynamicFormRoutes.map((route) => ({
-            ...route,
-            element: wrapRouteElement(route.element),
-          })),
+          ...contentRoutes,
         ],
       },
       {
@@ -766,7 +779,7 @@ export const useAllRoutes = (): RouteConfig[] => {
       },
     ];
     return routes;
-  }, [perspectiveRoutes, createdFormMenuItems, formAssignmentsByPath]);
+  }, [contentRoutes]);
 };
 
 export const useDashboardMenu = (): NavGroup[] => {
@@ -890,6 +903,26 @@ export const RoutesApp = () => {
   }
 
   return useRoutes(wrapRoutes(allRoutes));
+};
+
+// Business routes only, with no Layout wrapper — exposed to the container
+// host via Module Federation (see vite.config.ts `exposes["./WorkflowRoutes"]`
+// and container/src/components/RemoteWorkflowApp.tsx). The host mounts this
+// inside its own Layout, so container's Header/Sidebar/Footer stay in place
+// while this renders just the matched page content.
+export const WorkflowRemoteContent = () => {
+  const { hydrated } = useAuth();
+  const contentRoutes = useWorkflowContentRoutes();
+
+  if (!hydrated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return useRoutes(wrapRoutes(contentRoutes));
 };
 
 

@@ -3,13 +3,34 @@ import fs from "fs";
 //import bodyParser from "body-parser";
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
+import { createRequire } from 'module'
 import tailwindcss from '@tailwindcss/vite'
+import federation from '@originjs/vite-plugin-federation'
 
-export default defineConfig({ 
-  // base: '/', // Change to '/your-subdirectory/' if deployed to a subdirectory
-  plugins: [react(), tailwindcss()],
+const require = createRequire(import.meta.url)
+
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+    federation({
+      name: 'workflow',
+      filename: 'remoteEntry.js',
+      exposes: {
+        './WorkflowRoutes': './src/RemoteApp.tsx',
+      },
+      shared: ['react', 'react-dom', 'react-router', 'react-router-dom'],
+    }),
+  ],
+  build: {
+    target: 'esnext',
+    minify: false,
+    cssCodeSplit: false,
+    modulePreload: false,
+  },
   server: {
     port: 5317,
+    origin: 'http://localhost:3001',
     // setupMiddlewares(middlewares, server) {
     //   server.middlewares.use(bodyParser.json({ limit: "100mb" }));
     //   server.middlewares.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));
@@ -70,8 +91,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      react: path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      react: path.dirname(require.resolve('react/package.json')),
+      'react-dom': path.dirname(require.resolve('react-dom/package.json')),
     },
   }
 })
