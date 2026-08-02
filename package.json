@@ -16,8 +16,8 @@
     "dev:workflow": "corepack yarn workspace workflow run dev --port 3001 --strictPort",
     "build": "corepack yarn workspaces foreach --all -pvi -j 4 run build",
     "prepare": "corepack yarn workspaces foreach --all -pvi -j 4 run prepare",
-    "serve:container": "npx serve -s container/dist -l 3000",
-    "serve:workflow": "npx serve -s workflow/dist -l 3001",
+    "serve:container": "npx serve -s container/dist -l 3000 --cors",
+    "serve:workflow": "npx serve -s workflow/dist -l 3001 --cors",
     "serve:all": "concurrently --names \"container,workflow\" --prefix-colors \"blue,cyan\" \"npm run serve:container\" \"npm run serve:workflow\""
   },
   "devDependencies": {
