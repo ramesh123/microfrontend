@@ -3,7 +3,6 @@ import { ClipboardCheck, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { FlowJob, JobsFilter } from '@/types/jobs';
 import { Button } from '@/components/ui/button';
-import { FlowStatusChart } from './FlowStatusChart';
 import { JobsFilters } from './JobsFilters';
 import { TaskDetailView } from './TaskDetailView';
 import { FlowTable } from './FlowTable';
@@ -35,10 +34,6 @@ export const JobsComponent: React.FC = () => {
       }
       return updatedFilters;
     });
-  }, []);
-
-  const handleStatusClick = useCallback((status: string | null) => {
-    setFilters((prev) => ({ ...prev, status: status || undefined }));
   }, []);
 
   const handleFlowSelect = useCallback((flow: FlowJob | null) => {
@@ -86,9 +81,6 @@ export const JobsComponent: React.FC = () => {
             </div>
           </header>
           <div className='space-y-2'>
-          <div className="flex-shrink-0 w-full max-w-9xl">
-            <FlowStatusChart filters={filters} onStatusSelect={handleStatusClick} selectedStatus={filters.status} />
-          </div>
           <div className="flex-1 min-h-0 overflow-hidden">
             <FlowTable filters={filters} onRowClick={handleFlowSelect} filterResetSignal={filterResetSignal} />
           </div>

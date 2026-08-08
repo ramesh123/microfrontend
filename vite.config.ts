@@ -19,7 +19,7 @@ export default defineConfig({
       exposes: {
         './WorkflowRoutes': './src/RemoteApp.tsx',
       },
-      shared: ['react', 'react-dom', 'react-router', 'react-router-dom'],
+      shared: ['react', 'react-dom', 'react-router', 'react-router-dom', 'axios'],
     }),
   ],
   build: {
@@ -28,8 +28,16 @@ export default defineConfig({
     cssCodeSplit: false,
     modulePreload: false,
   },
+  preview: {
+    port: 3001,
+    host: '127.0.0.1',
+    strictPort: true,
+    cors: true,
+  },
   server: {
-    port: 5317,
+    port: 3001,
+    host: '127.0.0.1',
+    strictPort: true,
     origin: 'http://localhost:3001',
     // setupMiddlewares(middlewares, server) {
     //   server.middlewares.use(bodyParser.json({ limit: "100mb" }));

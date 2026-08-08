@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:stage": "tsc -b && vite build --mode staging",
+    "build:watch": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build --watch",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -111,6 +112,7 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react-swc": "^3.9.0",
     "body-parser": "^2.2.0",
+    "cross-env": "^7.0.3",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
