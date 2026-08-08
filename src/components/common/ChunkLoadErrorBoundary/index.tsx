@@ -66,12 +66,23 @@ class ChunkLoadErrorBoundary extends Component<Props, State> {
       this.props.onError(error, errorInfo);
     }
 
-    // For chunk load errors, log additional context
+    // For chunk load errors, log additional context and try one automatic
+    // reload before falling back to the manual "Update Available" prompt.
+    // The timestamp guard prevents a reload loop if the error keeps recurring
+    // (e.g. the dev server itself is down, not just a stale chunk reference).
     if (this.state.isChunkError) {
       console.warn(
         'A chunk load error occurred. This typically happens after a new deployment. ' +
         'The page should be reloaded to fetch the latest version.'
       );
+
+      const lastAttempt = Number(window.sessionStorage.getItem('chunk-reload-attempted-at') || 0);
+      const withinCooldown = Date.now() - lastAttempt < 10_000;
+
+      if (!withinCooldown) {
+        window.sessionStorage.setItem('chunk-reload-attempted-at', String(Date.now()));
+        this.handleReload();
+      }
     }
   }
 

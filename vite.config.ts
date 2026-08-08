@@ -19,7 +19,7 @@ export default defineConfig({
       remotes: {
         workflow: 'http://localhost:3001/assets/remoteEntry.js',
       },
-      shared: ['react', 'react-dom', 'react-router', 'react-router-dom'],
+      shared: ['react', 'react-dom', 'react-router', 'react-router-dom', 'axios'],
     }),
   ],
   build: {
@@ -29,6 +29,8 @@ export default defineConfig({
   },
   server: {
     port: 5317,
+    host: '127.0.0.1',
+    strictPort: true,
     // setupMiddlewares(middlewares, server) {
     //   server.middlewares.use(bodyParser.json({ limit: "100mb" }));
     //   server.middlewares.use(bodyParser.urlencoded({ limit: "100mb", extended: true }));

@@ -182,9 +182,15 @@ export const resolveApiErrorMessage = (
     if (mapped) return mapped;
   }
 
+  const legacyMsg =
+    typeof (data as { msg?: unknown }).msg === 'string'
+      ? String((data as { msg: string }).msg).trim()
+      : '';
+
   return (
     formatDetail(data.detail) ||
     (typeof data.error === 'string' ? data.error : undefined) ||
+    legacyMsg ||
     fallbackMessage
   );
 };

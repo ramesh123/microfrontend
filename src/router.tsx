@@ -59,6 +59,14 @@ export interface RouteConfig {
   index?: boolean;
   permissions?: string[];
   navOnly?: boolean;
+  // True for routes whose element renders RemoteWorkflowApp, which itself
+  // calls useRoutes() again inside the federated workflow bundle. React
+  // Router only forwards a "remaining path" to a nested router when the
+  // outer route's path ends in "/*" — without it, the nested router always
+  // sees an empty remaining path and renders nothing. Only used to decide
+  // the path passed to useRoutes() (see wrapRoutes); breadcrumbs keep using
+  // the clean `path` above.
+  isRemoteDelegate?: boolean;
 }
 
 /** IoT Gateway: rule chains under `/iot-gateway/rulechains`, devices under `/iot-gateway/devices`, dashboards under `/iot-gateway/dashboards`. */
@@ -108,6 +116,7 @@ function iotGatewayIconPathHint(item: MenuItem, ancestorHint?: string): string |
     firstPathInIotGatewaySubtree(selfNorm, ancestorHint) ??
     (isIotGatewayMenuRootItem(item) ? "/iot-gateway" : undefined)
   );
+
 }
 
 /** Hint passed to child menu rows so nested items inherit IoT scope when their own path omits the prefix. */
@@ -155,20 +164,28 @@ console.log("itemitem",item);
       item.children.forEach((child) => processMenuItem(child, childAncestor));
     }
 
-    if (item.path && !item.navOnly) {
+    if (item.path) {
+
       const path = normalizeIotGatewayMenuPath(item.path, hint) ?? item.path;
-      // Coming Soon only for sidebar menu items that have no real page yet
+      // Sidebar menu items without a native Container page delegate to the
+      // federated workflow remote (same as the wildcard fallback below),
+      // so breadcrumb metadata (title/path) is preserved while the actual
+      // page content comes from whatever workflow implements at this path.
+      console.log("pathpath",path);
+      console.log("isPathImplemented",isPathImplemented(path));
       if (!isPathImplemented(path)) {
         routes.push({
           path,
           title: item.title,
           icon: getIconForMenuItem(String(item.p_id ?? ""), hint),
-          element: <ComingSoonPage title={item.title} path={path} />,
+          element: <RemoteWorkflowApp />,
           isPrivate: true,
           hide: item.hidden || false,
           permissions: item.permissions?.map(p => `${p.action}:${p.resource}`) || [],
+          isRemoteDelegate: true,
         });
       }
+      console.log("routes",routes);
     }
   };
 
@@ -349,6 +366,7 @@ export const useAllRoutes = (): RouteConfig[] => {
             path: "*",
             element: wrapRouteElement(<RemoteWorkflowApp />),
             isPrivate: true,
+            isRemoteDelegate: true,
           },
         ],
       },
@@ -442,20 +460,30 @@ const ProtectedRoute = ({
 };
 
 const wrapRoutes = (routes: any[]): any[] =>
-  routes.map((route) => {
-    const wrapped = {
-      ...route,
-      element: route.element ? (
-        <ProtectedRoute isPrivate={route.isPrivate} element={route.element} />
-      ) : undefined,
-    };
+  routes
+    // Per-menu-item delegate routes (literal paths like "/draft_workflows")
+    // exist for breadcrumb metadata only. Registering them as actual <Route>
+    // entries alongside the bare "*" fallback backfires: React Router always
+    // prefers the more specific literal match, and a literal exact-path
+    // route has no "remaining path" to hand to RemoteWorkflowApp's own
+    // nested useRoutes() call, so it renders blank. The bare "*" fallback
+    // has no prefix to consume, so it correctly passes the full path through
+    // — dropping the literal duplicates here lets "*" catch them instead.
+    .filter((route) => !(route.isRemoteDelegate && route.path !== "*"))
+    .map((route) => {
+      const wrapped = {
+        ...route,
+        element: route.element ? (
+          <ProtectedRoute isPrivate={route.isPrivate} element={route.element} />
+        ) : undefined,
+      };
 
-    if (route.children) {
-      wrapped.children = wrapRoutes(route.children);
-    }
+      if (route.children) {
+        wrapped.children = wrapRoutes(route.children);
+      }
 
-    return wrapped;
-  });
+      return wrapped;
+    });
 
 export const RoutesApp = () => {
   const { hydrated } = useAuth();
