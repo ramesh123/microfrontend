@@ -16,9 +16,14 @@
     "dev:workflow": "corepack yarn workspace workflow run dev --port 3001 --strictPort",
     "build": "corepack yarn workspaces foreach --all -pvi -j 4 run build",
     "prepare": "corepack yarn workspaces foreach --all -pvi -j 4 run prepare",
-    "serve:container": "npx serve -s container/dist -l 3000 --cors",
-    "serve:workflow": "npx serve -s workflow/dist -l 3001 --cors",
-    "serve:all": "concurrently --names \"container,workflow\" --prefix-colors \"blue,cyan\" \"npm run serve:container\" \"npm run serve:workflow\""
+    "serve:container": "npx serve -s container/dist -l tcp://127.0.0.1:3000 --cors",
+    "serve:workflow": "npx serve -s workflow/dist -l tcp://127.0.0.1:3001 --cors",
+    "serve:all": "concurrently --names \"container,workflow\" --prefix-colors \"blue,cyan\" \"npm run serve:container\" \"npm run serve:workflow\"",
+    "serve:proxy": "node scripts/local-proxy.mjs",
+    "serve:mfa": "bash scripts/serve-mfa.sh",
+    "dev:workflow:watch": "corepack yarn workspace workflow run build:watch",
+    "serve:workflow:remote": "npx serve -s workflow/dist -l tcp://127.0.0.1:3001 --cors",
+    "dev:mfe": "concurrently --names \"container,workflow-build,workflow-serve\" --prefix-colors \"blue,cyan,magenta\" \"npm run dev:container\" \"npm run dev:workflow:watch\" \"npm run serve:workflow:remote\""
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
