@@ -26,6 +26,7 @@
     "dev:mfe": "concurrently --names \"container,workflow-build,workflow-serve\" --prefix-colors \"blue,cyan,magenta\" \"npm run dev:container\" \"npm run dev:workflow:watch\" \"npm run serve:workflow:remote\""
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "concurrently": "^8.2.2",
     "serve": "^14.2.1",
     "webpack": "^5.105.4",
