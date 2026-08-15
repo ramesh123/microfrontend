@@ -1,32 +1,103 @@
 import * as React from "react"
-import * as PopoverPrimitive from "@radix-ui/react-popover"
+import MuiPopover from "@mui/material/Popover"
 
-import { cn } from "@/lib/utils"
+type PopoverCtx = {
+  open: boolean
+  setOpen: (open: boolean) => void
+  anchorEl: HTMLElement | null
+  setAnchorEl: (el: HTMLElement | null) => void
+}
+const PopoverContext = React.createContext<PopoverCtx | null>(null)
 
-const Popover = PopoverPrimitive.Root
+interface PopoverProps {
+  open?: boolean
+  defaultOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  children?: React.ReactNode
+}
 
-const PopoverTrigger = PopoverPrimitive.Trigger
+function Popover({ open, defaultOpen, onOpenChange, children }: PopoverProps) {
+  const [internalOpen, setInternalOpen] = React.useState(defaultOpen ?? false)
+  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
+  const isOpen = open !== undefined ? open : internalOpen
 
-const PopoverAnchor = PopoverPrimitive.Anchor
+  const setOpen = (next: boolean) => {
+    setInternalOpen(next)
+    onOpenChange?.(next)
+  }
 
-const PopoverContent = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
-    <PopoverPrimitive.Content
-      ref={ref}
-      align={align}
-      sideOffset={sideOffset}
-      className={cn(
-        // z-[1400]: above Dialog/AlertDialog (z-[1290]/z-[1300]) so calendars/menus inside modals stay clickable
-        "z-[1400] w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-popover-content-transform-origin]",
-        className
-      )}
-      {...props}
-    />
-  </PopoverPrimitive.Portal>
-))
-PopoverContent.displayName = PopoverPrimitive.Content.displayName
+  return (
+    <PopoverContext.Provider value={{ open: isOpen, setOpen, anchorEl, setAnchorEl }}>
+      {children}
+    </PopoverContext.Provider>
+  )
+}
+
+function PopoverTrigger({
+  asChild,
+  children,
+}: {
+  asChild?: boolean
+  children?: React.ReactNode
+}) {
+  const ctx = React.useContext(PopoverContext)
+  const isElement = React.isValidElement<{ onClick?: (e: React.MouseEvent<HTMLElement>) => void }>(children)
+
+  const handleClick = (e: React.MouseEvent<HTMLElement>) => {
+    ctx?.setAnchorEl(e.currentTarget)
+    ctx?.setOpen(!ctx.open)
+  }
+
+  if (asChild && isElement) {
+    return React.cloneElement(children, {
+      onClick: (e: React.MouseEvent<HTMLElement>) => {
+        children.props.onClick?.(e)
+        handleClick(e)
+      },
+    })
+  }
+
+  return <button type="button" data-slot="popover-trigger" onClick={handleClick}>{children}</button>
+}
+
+function PopoverAnchor({ children }: { children?: React.ReactElement }) {
+  const ctx = React.useContext(PopoverContext)
+  const ref = React.useRef<HTMLElement | null>(null)
+
+  React.useEffect(() => {
+    if (ref.current) ctx?.setAnchorEl(ref.current)
+  }, [ctx])
+
+  if (!React.isValidElement(children)) return <>{children}</>
+  return React.cloneElement(children, { ref } as never)
+}
+
+function PopoverContent({
+  className,
+  align = "center",
+  sideOffset = 4,
+  children,
+}: {
+  className?: string
+  align?: "start" | "center" | "end"
+  sideOffset?: number
+  children?: React.ReactNode
+}) {
+  const ctx = React.useContext(PopoverContext)
+  const horizontal = align === "start" ? "left" : align === "end" ? "right" : "center"
+
+  return (
+    <MuiPopover
+      open={!!ctx?.open}
+      anchorEl={ctx?.anchorEl}
+      onClose={() => ctx?.setOpen(false)}
+      anchorOrigin={{ vertical: "bottom", horizontal }}
+      transformOrigin={{ vertical: -sideOffset, horizontal }}
+      slotProps={{ paper: { className, sx: { zIndex: 1400 } } }}
+    >
+      {children}
+    </MuiPopover>
+  )
+}
 
 export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor }

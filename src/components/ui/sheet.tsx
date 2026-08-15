@@ -1,129 +1,147 @@
-"use client"
-
 import * as React from "react"
-import * as SheetPrimitive from "@radix-ui/react-dialog"
+import MuiDrawer from "@mui/material/Drawer"
 import { XIcon } from "lucide-react"
 
-import { cn, preventDismissIfSonnerToast } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 
-function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+type SheetCtx = { open: boolean; setOpen: (open: boolean) => void }
+const SheetContext = React.createContext<SheetCtx | null>(null)
+
+interface SheetProps {
+  open?: boolean
+  defaultOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  children?: React.ReactNode
+}
+
+function Sheet({ open, defaultOpen, onOpenChange, children }: SheetProps) {
+  const [internal, setInternal] = React.useState(defaultOpen ?? false)
+  const isOpen = open !== undefined ? open : internal
+
+  const setOpen = (next: boolean) => {
+    setInternal(next)
+    onOpenChange?.(next)
+  }
+
+  return <SheetContext.Provider value={{ open: isOpen, setOpen }}>{children}</SheetContext.Provider>
 }
 
 function SheetTrigger({
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
-  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
+  asChild,
+  children,
+}: {
+  asChild?: boolean
+  children?: React.ReactNode
+}) {
+  const ctx = React.useContext(SheetContext)
+  const isElement = React.isValidElement<{ onClick?: (e: React.MouseEvent) => void }>(children)
+  const handleClick = (e: React.MouseEvent) => {
+    if (isElement) children.props.onClick?.(e)
+    ctx?.setOpen(true)
+  }
+  if (asChild && isElement) {
+    return React.cloneElement(children, { onClick: handleClick })
+  }
+  return <button type="button" data-slot="sheet-trigger" onClick={handleClick}>{children}</button>
 }
 
 function SheetClose({
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Close>) {
-  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
+  asChild,
+  children,
+}: {
+  asChild?: boolean
+  children?: React.ReactNode
+}) {
+  const ctx = React.useContext(SheetContext)
+  const isElement = React.isValidElement<{ onClick?: (e: React.MouseEvent) => void }>(children)
+  const handleClick = (e: React.MouseEvent) => {
+    if (isElement) children.props.onClick?.(e)
+    ctx?.setOpen(false)
+  }
+  if (asChild && isElement) {
+    return React.cloneElement(children, { onClick: handleClick })
+  }
+  return <button type="button" data-slot="sheet-close" onClick={handleClick}>{children}</button>
 }
 
-function SheetPortal({
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
-}
+const sideToAnchor = { top: "top", right: "right", bottom: "bottom", left: "left" } as const
 
-function SheetOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
-  return (
-    <SheetPrimitive.Overlay
-      data-slot="sheet-overlay"
-      className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
+// Radix's Dialog content closed itself on any document-level outside pointerdown/focus
+// (even into other portals like a Sonner toast), which is why the original wired
+// onFocusOutside/onInteractOutside/onPointerDownOutside through preventDismissIfSonnerToast
+// to stop that. MUI's Drawer only ever dismisses on an explicit backdrop click or Escape —
+// it has no such "any outside interaction closes me" behavior — so that guard has nothing
+// left to prevent here and was dropped.
 function SheetContent({
   className,
   children,
   side = "right",
   hideClose = false,
-  onFocusOutside,
-  onInteractOutside,
-  onPointerDownOutside,
   ...props
-}: React.ComponentProps<typeof SheetPrimitive.Content> & {
+}: React.HTMLAttributes<HTMLDivElement> & {
   side?: "top" | "right" | "bottom" | "left"
   /** When true, the default floating close control is not rendered (use custom `SheetClose` in children). */
   hideClose?: boolean
 }) {
+  const ctx = React.useContext(SheetContext)
+
   return (
-    <SheetPortal>
-      <SheetOverlay />
-      <SheetPrimitive.Content
-        data-slot="sheet-content"
-        onFocusOutside={(event) => {
-          preventDismissIfSonnerToast(event)
-          onFocusOutside?.(event)
-        }}
-        onInteractOutside={(event) => {
-          preventDismissIfSonnerToast(event)
-          onInteractOutside?.(event)
-        }}
-        onPointerDownOutside={(event) => {
-          preventDismissIfSonnerToast(event)
-          onPointerDownOutside?.(event)
-        }}
-        className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
-          side === "right" &&
-          "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-[90vw] min-w-0 max-w-none border-l",
-          side === "left" &&
-          "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
-          side === "top" &&
-          "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
-          side === "bottom" &&
-          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        {!hideClose && (
-          <SheetPrimitive.Close
-            className={cn(
-              "absolute z-[60] flex size-11 items-center justify-center rounded-full border shadow-md transition-all",
+    <MuiDrawer
+      data-slot="sheet-content"
+      anchor={sideToAnchor[side]}
+      open={!!ctx?.open}
+      onClose={() => ctx?.setOpen(false)}
+      sx={{ zIndex: 50 }}
+      slotProps={{
+        paper: {
+          className: cn(
+            "flex flex-col gap-4 relative",
+            side === "right" && "w-[90vw] min-w-0 max-w-none border-l",
+            side === "left" && "w-3/4 border-r sm:max-w-sm",
+            side === "top" && "border-b",
+            side === "bottom" && "border-t",
+            className,
+          ),
+          ...props,
+        },
+      }}
+    >
+      {children}
+      {!hideClose && (
+        <button
+          type="button"
+          onClick={() => ctx?.setOpen(false)}
+          className={cn(
+            "absolute z-[60] flex size-11 items-center justify-center rounded-full border shadow-md transition-all",
 
-              // Base
-              "bg-background text-foreground border-border",
+            // Base
+            "bg-background text-foreground border-border",
 
-              // Hover based on theme
-              "hover:bg-gray-100 dark:hover:bg-white",
+            // Hover based on theme
+            "hover:bg-gray-100 dark:hover:bg-white",
 
-              // Optional text contrast on hover
-              "hover:bg-gray-100 hover:text-black",
-              "dark:hover:bg-white dark:hover:text-black",
+            // Optional text contrast on hover
+            "hover:bg-gray-100 hover:text-black",
+            "dark:hover:bg-white dark:hover:text-black",
 
-              // Focus
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            // Focus
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
 
-              // Disabled
-              "disabled:pointer-events-none disabled:opacity-50",
+            // Disabled
+            "disabled:pointer-events-none disabled:opacity-50",
 
-              // Position — sit just outside the sheet edge (closer than full button width offset)
-              side === "right" && "left-[-3rem] top-2",
-              side === "left" && "right-[-3rem] top-2",
-              side === "top" && "bottom-4 right-4 left-auto top-auto",
-              side === "bottom" && "right-4 top-4 left-auto bottom-auto",
-            )}
-          >
-            <XIcon className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </SheetPrimitive.Close>
-        )}
-      </SheetPrimitive.Content>
-    </SheetPortal>
+            // Position — sit just outside the sheet edge (closer than full button width offset)
+            side === "right" && "left-[-3rem] top-2",
+            side === "left" && "right-[-3rem] top-2",
+            side === "top" && "bottom-4 right-4 left-auto top-auto",
+            side === "bottom" && "right-4 top-4 left-auto bottom-auto",
+          )}
+        >
+          <XIcon className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </button>
+      )}
+    </MuiDrawer>
   )
 }
 
@@ -147,30 +165,12 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function SheetTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Title>) {
-  return (
-    <SheetPrimitive.Title
-      data-slot="sheet-title"
-      className={cn("text-foreground font-semibold", className)}
-      {...props}
-    />
-  )
+function SheetTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h2 data-slot="sheet-title" className={cn("text-foreground font-semibold", className)} {...props} />
 }
 
-function SheetDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Description>) {
-  return (
-    <SheetPrimitive.Description
-      data-slot="sheet-description"
-      className={cn("text-muted-foreground text-sm", className)}
-      {...props}
-    />
-  )
+function SheetDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p data-slot="sheet-description" className={cn("text-muted-foreground text-sm", className)} {...props} />
 }
 
 export {
@@ -182,4 +182,5 @@ export {
   SheetFooter,
   SheetTitle,
   SheetDescription,
+  SheetContext,
 }

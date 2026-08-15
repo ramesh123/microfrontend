@@ -1,53 +1,47 @@
-"use client"
-
 import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
+import MuiAvatar from "@mui/material/Avatar"
 
-import { cn } from "@/lib/utils"
+type AvatarImageProps = { src?: string; alt?: string; className?: string }
+type AvatarFallbackProps = { children?: React.ReactNode; className?: string }
 
-function Avatar({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+// Radix splits Avatar into Root/Image/Fallback so the fallback only shows
+// if the image fails to load — Root doesn't itself take `src`, its
+// AvatarImage child does. MUI's Avatar takes `src` directly on the root and
+// falls back to its `children` on load error, so Root here walks its
+// children once to find an AvatarImage/AvatarFallback and feeds their
+// src/content into a single underlying MuiAvatar, preserving the same
+// call-site shape (<Avatar><AvatarImage .../><AvatarFallback>...</AvatarFallback></Avatar>).
+function Avatar({ className, children, ...props }: React.ComponentProps<typeof MuiAvatar>) {
+  let src: string | undefined
+  let alt: string | undefined
+  let fallback: React.ReactNode
+
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return
+    if (child.type === AvatarImage) {
+      const imgProps = child.props as AvatarImageProps
+      src = imgProps.src
+      alt = imgProps.alt
+    } else if (child.type === AvatarFallback) {
+      fallback = (child.props as AvatarFallbackProps).children
+    }
+  })
+
   return (
-    <AvatarPrimitive.Root
-      data-slot="avatar"
-      className={cn(
-        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
-        className
-      )}
-      {...props}
-    />
+    <MuiAvatar data-slot="avatar" className={className} src={src} alt={alt} {...props}>
+      {fallback}
+    </MuiAvatar>
   )
 }
 
-function AvatarImage({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
-  return (
-    <AvatarPrimitive.Image
-      data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
-      {...props}
-    />
-  )
+// Not rendered directly — Avatar reads its props above. Exists so call
+// sites keep using the familiar <AvatarImage src=.../> shape unchanged.
+function AvatarImage(_props: AvatarImageProps) {
+  return null
 }
 
-function AvatarFallback({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
-  return (
-    <AvatarPrimitive.Fallback
-      data-slot="avatar-fallback"
-      className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
-        className
-      )}
-      {...props}
-    />
-  )
+function AvatarFallback(_props: AvatarFallbackProps) {
+  return null
 }
 
 export { Avatar, AvatarImage, AvatarFallback }

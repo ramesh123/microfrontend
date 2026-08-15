@@ -1,47 +1,103 @@
 import * as React from "react"
-import * as SelectPrimitive from "@radix-ui/react-select"
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import MuiMenu from "@mui/material/Menu"
+import MuiMenuItem from "@mui/material/MenuItem"
+import MuiListSubheader from "@mui/material/ListSubheader"
+import MuiDivider from "@mui/material/Divider"
+import { CheckIcon, ChevronDownIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-/** Radix Select forbids empty-string item values; map blanks to/from this sentinel. */
-export const SELECT_EMPTY_VALUE = "__select_empty_value__";
-
+/** MUI's Select has no restriction on empty-string values (unlike Radix) — kept as
+ * identity functions only for call-site compatibility, no longer doing any mapping. */
+export const SELECT_EMPTY_VALUE = "";
 export function toSelectItemValue(value: string): string {
-  return value === "" ? SELECT_EMPTY_VALUE : value;
+  return value;
 }
-
 export function fromSelectItemValue(value: string): string {
-  return value === SELECT_EMPTY_VALUE ? "" : value;
+  return value;
 }
 
-type SelectRootProps = React.ComponentProps<typeof SelectPrimitive.Root>;
+type SelectCtx = {
+  value?: string
+  onValueChange?: (value: string) => void
+  open: boolean
+  setOpen: (open: boolean) => void
+  anchorEl: HTMLElement | null
+  setAnchorEl: (el: HTMLElement | null) => void
+  labels: Map<string, React.ReactNode>
+  registerLabel: (value: string, label: React.ReactNode) => void
+  disabled?: boolean
+}
+const SelectContext = React.createContext<SelectCtx | null>(null)
 
 function Select({
-  // Accepted for call-site compatibility; Radix Select has no modal mode.
-  modal: _modal,
+  value,
+  defaultValue,
   onValueChange,
-  ...rest
-}: SelectRootProps & { modal?: boolean }) {
+  children,
+  disabled,
+  // Accepted for call-site compatibility; MUI's Menu-based Select has no modal mode.
+  modal: _modal,
+}: {
+  value?: string
+  defaultValue?: string
+  onValueChange?: (value: string) => void
+  children?: React.ReactNode
+  modal?: boolean
+  disabled?: boolean
+}) {
+  const [internal, setInternal] = React.useState(defaultValue ?? "")
+  const [open, setOpen] = React.useState(false)
+  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
+  const labelsRef = React.useRef(new Map<string, React.ReactNode>())
+  const [, forceUpdate] = React.useState(0)
+
+  const currentValue = value !== undefined ? value : internal
+
+  const handleChange = (v: string) => {
+    setInternal(v)
+    onValueChange?.(v)
+  }
+
+  const registerLabel = React.useCallback((v: string, label: React.ReactNode) => {
+    if (labelsRef.current.get(v) !== label) {
+      labelsRef.current.set(v, label)
+      forceUpdate((n) => n + 1)
+    }
+  }, [])
+
   return (
-    <SelectPrimitive.Root
-      data-slot="select"
-      onValueChange={(value) => onValueChange?.(fromSelectItemValue(value))}
-      {...rest}
-    />
+    <SelectContext.Provider
+      value={{
+        value: currentValue,
+        onValueChange: handleChange,
+        open,
+        setOpen,
+        anchorEl,
+        setAnchorEl,
+        labels: labelsRef.current,
+        registerLabel,
+        disabled,
+      }}
+    >
+      {children}
+    </SelectContext.Provider>
   )
 }
 
-function SelectGroup({
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Group>) {
-  return <SelectPrimitive.Group data-slot="select-group" {...props} />
+// No-op passthrough — items register directly with Select's context.
+function SelectGroup({ children }: { children?: React.ReactNode }) {
+  return <>{children}</>
 }
 
-function SelectValue({
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Value>) {
-  return <SelectPrimitive.Value data-slot="select-value" {...props} />
+function SelectValue({ placeholder, className }: { placeholder?: React.ReactNode; className?: string }) {
+  const ctx = React.useContext(SelectContext)
+  const label = ctx?.value ? ctx.labels.get(ctx.value) : undefined
+  return (
+    <span data-slot="select-value" className={cn(!label && "text-muted-foreground", className)}>
+      {label ?? placeholder}
+    </span>
+  )
 }
 
 function SelectTrigger({
@@ -49,77 +105,53 @@ function SelectTrigger({
   size = "default",
   children,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
-  size?: "sm" | "default"
-}) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { size?: "sm" | "default" }) {
+  const ctx = React.useContext(SelectContext)
   return (
-    <SelectPrimitive.Trigger
+    <button
+      type="button"
       data-slot="select-trigger"
       data-size={size}
+      disabled={ctx?.disabled}
+      onClick={(e) => {
+        if (ctx?.disabled) return
+        ctx?.setAnchorEl(e.currentTarget)
+        ctx?.setOpen(true)
+      }}
       className={cn(
-        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className
+        "border-input flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        size === "default" ? "h-9" : "h-8",
+        className,
       )}
       {...props}
     >
       {children}
-      <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 opacity-50" />
-      </SelectPrimitive.Icon>
-    </SelectPrimitive.Trigger>
+      <ChevronDownIcon className="size-4 opacity-50" />
+    </button>
   )
 }
 
-function SelectContent({
-  className,
-  children,
-  position = "popper",
-  onCloseAutoFocus,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+function SelectContent({ className, children }: { className?: string; children?: React.ReactNode; position?: string }) {
+  const ctx = React.useContext(SelectContext)
   return (
-    <SelectPrimitive.Portal>
-      <SelectPrimitive.Content
-        data-slot="select-content"
-        onCloseAutoFocus={(event) => {
-          // Keep sidebar / customize panel scroll position when a dropdown closes
-          event.preventDefault();
-          onCloseAutoFocus?.(event);
-        }}
-        className={cn(
-          // z-[1400]: above Dialog/AlertDialog (z-[1290]/z-[1300]) so selects inside modals stay visible
-          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-[1400] max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md",
-          position === "popper" &&
-            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-          className
-        )}
-        position={position}
-        {...props}
-      >
-        <SelectScrollUpButton />
-        <SelectPrimitive.Viewport
-          className={cn(
-            "p-1",
-            position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
-          )}
-        >
-          {children}
-        </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
-      </SelectPrimitive.Content>
-    </SelectPrimitive.Portal>
+    <MuiMenu
+      data-slot="select-content"
+      open={!!ctx?.open}
+      anchorEl={ctx?.anchorEl}
+      onClose={() => ctx?.setOpen(false)}
+      sx={{ zIndex: 1400 }}
+      slotProps={{ paper: { className: cn("min-w-32", className) } }}
+    >
+      {children}
+    </MuiMenu>
   )
 }
 
-function SelectLabel({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Label>) {
+function SelectLabel({ className, ...props }: React.ComponentProps<typeof MuiListSubheader>) {
   return (
-    <SelectPrimitive.Label
+    <MuiListSubheader
       data-slot="select-label"
-      className={cn("text-muted-foreground px-2 py-1.5 text-xs", className)}
+      className={cn("text-muted-foreground px-2 py-1.5 text-xs leading-normal", className)}
       {...props}
     />
   )
@@ -129,80 +161,51 @@ function SelectItem({
   className,
   children,
   value,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
-  const isEmptyValue = value === "";
-  const radixValue = toSelectItemValue(value);
+  disabled,
+}: {
+  className?: string
+  children?: React.ReactNode
+  value: string
+  disabled?: boolean
+}) {
+  const ctx = React.useContext(SelectContext)
+  const isSelected = ctx?.value === value
+
+  React.useEffect(() => {
+    ctx?.registerLabel(value, children)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, children])
 
   return (
-    <SelectPrimitive.Item
+    <MuiMenuItem
       data-slot="select-item"
-      value={radixValue}
-      className={cn(
-        "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
-        className
-      )}
-      {...props}
+      disabled={disabled}
+      selected={isSelected}
+      className={cn("relative pr-8 pl-2", className)}
+      onClick={() => {
+        ctx?.onValueChange?.(value)
+        ctx?.setOpen(false)
+      }}
     >
       <span className="absolute right-2 flex size-3.5 items-center justify-center">
-        <SelectPrimitive.ItemIndicator>
-          <CheckIcon className="size-4" />
-        </SelectPrimitive.ItemIndicator>
+        {isSelected && <CheckIcon className="size-4" />}
       </span>
-      <SelectPrimitive.ItemText>
-        {isEmptyValue ? (children ?? <span className="text-muted-foreground">(empty)</span>) : children}
-      </SelectPrimitive.ItemText>
-    </SelectPrimitive.Item>
+      {children === "" || children == null ? <span className="text-muted-foreground">(empty)</span> : children}
+    </MuiMenuItem>
   )
 }
 
-function SelectSeparator({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Separator>) {
-  return (
-    <SelectPrimitive.Separator
-      data-slot="select-separator"
-      className={cn("bg-border pointer-events-none -mx-1 my-1 h-px", className)}
-      {...props}
-    />
-  )
+function SelectSeparator({ className }: { className?: string }) {
+  return <MuiDivider data-slot="select-separator" className={cn("-mx-1 my-1", className)} />
 }
 
-function SelectScrollUpButton({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
-  return (
-    <SelectPrimitive.ScrollUpButton
-      data-slot="select-scroll-up-button"
-      className={cn(
-        "flex cursor-default items-center justify-center py-1",
-        className
-      )}
-      {...props}
-    >
-      <ChevronUpIcon className="size-4" />
-    </SelectPrimitive.ScrollUpButton>
-  )
+// MUI's Menu scrolls natively — Radix's dedicated scroll-up/down buttons
+// have no equivalent need here; kept as no-op exports for call-site compatibility.
+function SelectScrollUpButton() {
+  return null
 }
-
-function SelectScrollDownButton({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
-  return (
-    <SelectPrimitive.ScrollDownButton
-      data-slot="select-scroll-down-button"
-      className={cn(
-        "flex cursor-default items-center justify-center py-1",
-        className
-      )}
-      {...props}
-    >
-      <ChevronDownIcon className="size-4" />
-    </SelectPrimitive.ScrollDownButton>
-  )
+function SelectScrollDownButton() {
+  return null
 }
 
 export {

@@ -1,59 +1,90 @@
 import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import MuiTooltip, { type TooltipProps as MuiTooltipProps } from "@mui/material/Tooltip"
 
-import { cn } from "@/lib/utils"
+const TooltipDelayContext = React.createContext(0)
 
 function TooltipProvider({
   delayDuration = 0,
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
-  return (
-    <TooltipPrimitive.Provider
-      data-slot="tooltip-provider"
-      delayDuration={delayDuration}
-      {...props}
-    />
-  )
-}
-
-function Tooltip({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return (
-    <TooltipProvider>
-      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
-    </TooltipProvider>
-  )
-}
-
-function TooltipTrigger({
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
-}
-
-function TooltipContent({
-  className,
-  sideOffset = 0,
   children,
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: {
+  delayDuration?: number
+  children?: React.ReactNode
+}) {
+  return <TooltipDelayContext.Provider value={delayDuration}>{children}</TooltipDelayContext.Provider>
+}
+
+type TooltipTriggerProps = { children?: React.ReactNode; asChild?: boolean }
+type Side = "top" | "right" | "bottom" | "left"
+type Align = "start" | "center" | "end"
+type TooltipContentProps = {
+  children?: React.ReactNode
+  className?: string
+  sideOffset?: number
+  side?: Side
+  align?: Align
+  hidden?: boolean
+  // Radix-only positioning knobs some call sites still pass through; MUI's
+  // Tooltip auto-flips placement on its own, so these are accepted (for
+  // call-site compatibility) but have no effect.
+  avoidCollisions?: boolean
+  sticky?: string
+  // TooltipContent never renders its own DOM node (Tooltip reads its props
+  // and renders a single MuiTooltip around the trigger instead), so a ref
+  // passed here is accepted for call-site compatibility but never attaches.
+  ref?: React.Ref<HTMLDivElement>
+}
+
+// side+align (Radix's two-axis positioning) combine into MUI's single
+// `placement` string (e.g. side="right" align="start" -> "right-start").
+function toPlacement(side: Side = "top", align: Align = "center"): MuiTooltipProps["placement"] {
+  if (align === "center") return side
+  return `${side}-${align === "start" ? "start" : "end"}` as MuiTooltipProps["placement"]
+}
+
+// Radix splits Tooltip into Root/Trigger/Content so the trigger and its
+// label can live as separate JSX children; MUI's Tooltip instead wraps a
+// single child directly via a `title` prop. Root here walks its children
+// once to pull the trigger element and content out, then renders one
+// MuiTooltip — preserving the familiar
+// <Tooltip><TooltipTrigger>...</TooltipTrigger><TooltipContent>...</TooltipContent></Tooltip> shape.
+function Tooltip({ children }: { children?: React.ReactNode }) {
+  const delayDuration = React.useContext(TooltipDelayContext)
+  let trigger: React.ReactNode = null
+  let content: React.ReactNode = null
+  let contentProps: TooltipContentProps = {}
+
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return
+    if (child.type === TooltipTrigger) {
+      trigger = (child.props as TooltipTriggerProps).children
+    } else if (child.type === TooltipContent) {
+      contentProps = child.props as TooltipContentProps
+      content = contentProps.children
+    }
+  })
+
+  if (!React.isValidElement(trigger)) return <>{trigger}</>
+  if (contentProps.hidden) return <>{trigger}</>
+
   return (
-    <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Content
-        data-slot="tooltip-content"
-        sideOffset={sideOffset}
-        className={cn(
-          "bg-primary text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-[1400] w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        <TooltipPrimitive.Arrow className="bg-primary fill-primary z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
-      </TooltipPrimitive.Content>
-    </TooltipPrimitive.Portal>
+    <MuiTooltip
+      title={content ?? ""}
+      enterDelay={delayDuration}
+      placement={toPlacement(contentProps.side, contentProps.align)}
+      arrow
+    >
+      {trigger}
+    </MuiTooltip>
   )
+}
+
+// Not rendered directly — Tooltip reads its child/props above.
+function TooltipTrigger(props: TooltipTriggerProps) {
+  return <>{props.children}</>
+}
+
+function TooltipContent(props: TooltipContentProps) {
+  return <>{props.children}</>
 }
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
