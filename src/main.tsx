@@ -32,12 +32,32 @@ import './index.css'
 }
 import './styles/applies.css';
 import "./styles/ag-theme-shadcn.css";
-import { BrowserRouter } from 'react-router'
+import { BrowserRouter, useLocation } from 'react-router'
 import { RoutesApp } from './router'
 import { ThemeProvider } from '@/context/theme'
 import { AuthProvider } from '@/context/auth/authContext'
 import ChunkLoadErrorBoundary from '@/components/common/ChunkLoadErrorBoundary'
 import { Toaster } from 'sonner';
+
+/**
+ * ChunkLoadErrorBoundary sits above BrowserRouter at the top level, so once it
+ * catches an error its `hasError` state stays true for the boundary's whole
+ * lifetime — client-side route changes are just internal router state, they
+ * don't remount anything above the router, so every subsequent route keeps
+ * rendering the same stuck fallback instead of getting its own chance to
+ * render. Wrapping just the routed content here and keying the boundary to
+ * the current pathname makes React remount (and thus reset) it whenever the
+ * user navigates to a different route, so one broken page no longer takes
+ * down every other route for the rest of the session.
+ */
+function RoutedContent() {
+  const location = useLocation()
+  return (
+    <ChunkLoadErrorBoundary key={location.pathname}>
+      <RoutesApp />
+    </ChunkLoadErrorBoundary>
+  )
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -55,7 +75,7 @@ createRoot(document.getElementById('root')!).render(
               visibleToasts={6}
               expand
             />
-            <RoutesApp />
+            <RoutedContent />
           </ThemeProvider>
         </AuthProvider>
       </BrowserRouter>
