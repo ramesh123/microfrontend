@@ -21,7 +21,6 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchProjectsApi } from "@/controllers/API";
 import useFlowStore from "@/stores/flowStore";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { useRbacStore } from "@/stores/useRBACStore";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { Lock } from "lucide-react";

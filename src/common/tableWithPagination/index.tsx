@@ -162,14 +162,32 @@ const TableWithPagination = <T extends object>({
     internalScrollContainerRef.current?.scrollTo({ top: 0, left: 0 });
   }, [data, pagination.currentPage, pagination.pageSize]);
 
+  /**
+   * table-fixed + w-full caps the table at the wrapper's width, so extra columns just get
+   * squished instead of overflowing. Deriving min-width from the actual column widths (with a
+   * 1100px floor so narrow tables keep their previous look) lets the table grow past the
+   * viewport when there are many/wide columns, which is what makes the wrapper's overflow-auto
+   * actually produce a horizontal scrollbar instead of shrinking every column.
+   */
+  const tableMinWidth = React.useMemo(() => {
+    const columnsWidth = columns.reduce(
+      (sum, col) => sum + (Number((col as ColumnDef<T>).size) || 120),
+      0,
+    );
+    return Math.max(columnsWidth, 1100);
+  }, [columns]);
+
   return (
     <div className="flex h-full w-full max-w-full flex-col">
       <div
         ref={setScrollContainerRefs}
-        className={cn("max-h-[620px] w-full overflow-auto", scrollContainerClassName)}
+        className={cn("max-h-[60vh] w-full overflow-auto sm:max-h-[620px]", scrollContainerClassName)}
         style={scrollContainerStyle}
       >
-        <table className="w-full min-w-[1100px] border-collapse table-fixed text-sm">
+        <table
+          className="w-full border-collapse table-fixed text-sm"
+          style={{ minWidth: `${tableMinWidth}px` }}
+        >
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="border-b border-border/60 bg-muted">
@@ -180,7 +198,7 @@ const TableWithPagination = <T extends object>({
                       key={header.id}
                       onClick={header.column.getToggleSortingHandler()}
                       className={cn(
-                        "sticky top-0 z-20 select-none bg-muted px-2 py-2.5 text-left text-xs font-semibold leading-snug tracking-wide text-muted-foreground",
+                        "sticky top-0 z-20 select-none bg-muted px-1.5 py-2 text-left text-[11px] font-semibold leading-snug tracking-wide text-muted-foreground sm:px-2 sm:py-2.5 sm:text-xs",
                         headerUppercase && "uppercase",
                         header.column.getCanSort() && "cursor-pointer hover:bg-muted/80",
                         isLast && "right-0 border-0 shadow-none",
@@ -212,7 +230,7 @@ const TableWithPagination = <T extends object>({
                   {columns.map((col, j) => (
                     <td
                       key={j}
-                      className="px-2 py-2.5 text-left align-middle"
+                      className="px-1.5 py-2 text-left align-middle sm:px-2 sm:py-2.5"
                       style={{ width: `${(col as ColumnDef<T>).size || 120}px` }}
                     >
                       <div className="h-4 w-3/4 max-w-full animate-pulse rounded bg-muted" />
@@ -249,7 +267,7 @@ const TableWithPagination = <T extends object>({
                         <td
                           key={cell.id}
                           className={cn(
-                            "px-2 py-2.5 text-left align-middle",
+                            "px-1.5 py-2 text-left align-middle text-xs sm:px-2 sm:py-2.5 sm:text-sm",
                             isLast &&
                               "sticky right-0 z-10 border-0 bg-background shadow-none group-hover:bg-muted/40",
                           )}
@@ -364,10 +382,10 @@ const TableWithPagination = <T extends object>({
           </div>
         </div>
       ) : (
-        <div className="flex shrink-0 flex-col gap-3 border-t border-border bg-background px-1 py-1 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex shrink-0 flex-col gap-2 border-t border-border bg-background px-1 py-1 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
           <>
-            <div className="text-sm text-muted-foreground tabular-nums">{totalRows} Rows</div>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="text-xs text-muted-foreground tabular-nums sm:text-sm">{totalRows} Rows</div>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs sm:gap-2 sm:text-sm">
               <span>Page</span>
               <strong>
                 {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
@@ -377,7 +395,7 @@ const TableWithPagination = <T extends object>({
                 type="number"
                 min={1}
                 max={table.getPageCount()}
-                className="h-7 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-sm sm:w-20"
+                className="h-7 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-xs shadow-sm sm:w-20 sm:text-sm"
                 defaultValue={table.getState().pagination.pageIndex + 1}
                 onBlur={(e) => {
                   const page = Number(e.target.value);
@@ -402,7 +420,7 @@ const TableWithPagination = <T extends object>({
                   ))}
                 </SelectContent>
               </Select>
-              <div className="flex gap-1">
+              <div className="flex gap-0.5 sm:gap-1">
                 <Button variant="ghost" size="icon" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
                   <ChevronsLeft className="h-4 w-4" />
                 </Button>

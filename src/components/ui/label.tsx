@@ -1,20 +1,17 @@
 import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
-
-import { cn } from "@/lib/utils"
+import MuiFormLabel from "@mui/material/FormLabel"
 
 const Label = React.forwardRef<
-  React.ElementRef<typeof LabelPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> & { htmlFor?: string }
+  HTMLLabelElement,
+  React.ComponentPropsWithoutRef<typeof MuiFormLabel> & { htmlFor?: string }
 >(({ className, htmlFor, ...props }, ref) => (
-  <LabelPrimitive.Root
+  <MuiFormLabel
     ref={ref}
+    component="label"
     data-slot="label"
-    className={cn(
-      "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-      className
-    )}
     htmlFor={htmlFor}
+    className={className}
+    sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.875rem", fontWeight: 500 }}
     {...props}
   />
 ))

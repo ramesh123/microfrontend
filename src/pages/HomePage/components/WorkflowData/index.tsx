@@ -21,7 +21,6 @@ import useFlowStore from "@/stores/flowStore";
 import { useCreateNewWorkflow } from "@/hooks/use-add-flow";
 import { useIdStore } from "@/stores/idStore";
 import { track } from "@/customization/utils/analytics";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import SkeletonGroup from "@/components/ui/skeletonGroup";
 import { useRbacStore } from "@/stores/useRBACStore";

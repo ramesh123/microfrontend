@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { LoaderCircle } from "lucide-react";
 import * as React from "react";
 import { createContext, useContext } from "react";
-import { CheckIcon } from "@radix-ui/react-icons";
+import CheckIcon from "@mui/icons-material/Check";
 
 // Types
 type StepperContextValue = {

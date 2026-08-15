@@ -1,130 +1,131 @@
-"use client";
-
-import * as SelectPrimitive from "@radix-ui/react-select";
 import * as React from "react";
+import MuiMenu from "@mui/material/Menu";
+import MuiMenuItem from "@mui/material/MenuItem";
 import { cn } from "@/lib/utils";
 
-const Select = SelectPrimitive.Root;
+type SelectCtx = {
+  value?: string;
+  onValueChange?: (value: string) => void;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  anchorEl: HTMLElement | null;
+  setAnchorEl: (el: HTMLElement | null) => void;
+};
+const SelectContext = React.createContext<SelectCtx | null>(null);
 
-const SelectGroup = SelectPrimitive.Group;
+function Select({
+  value,
+  defaultValue,
+  onValueChange,
+  children,
+}: {
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  children?: React.ReactNode;
+}) {
+  const [internal, setInternal] = React.useState(defaultValue ?? "");
+  const [open, setOpen] = React.useState(false);
+  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
+  const currentValue = value !== undefined ? value : internal;
 
-const SelectValue = SelectPrimitive.Value;
+  const handleChange = (v: string) => {
+    setInternal(v);
+    onValueChange?.(v);
+  };
 
-const SelectTrigger = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn("flex w-full items-center justify-between", className)}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild></SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-));
-SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
+  return (
+    <SelectContext.Provider value={{ value: currentValue, onValueChange: handleChange, open, setOpen, anchorEl, setAnchorEl }}>
+      {children}
+    </SelectContext.Provider>
+  );
+}
 
-const SelectContent = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Portal>
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        "relative z-50 min-w-[11.5rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-        position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-        className,
-      )}
-      position={position}
-      {...props}
-    >
-      <SelectPrimitive.Viewport
-        className={cn(
-          "p-1",
-          position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
-        )}
+function SelectGroup({ children }: { children?: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+function SelectValue({ placeholder, className }: { placeholder?: React.ReactNode; className?: string }) {
+  const ctx = React.useContext(SelectContext);
+  return <span className={className}>{ctx?.value || placeholder}</span>;
+}
+
+const SelectTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
+  ({ className, children, ...props }, ref) => {
+    const ctx = React.useContext(SelectContext);
+    return (
+      <button
+        ref={ref}
+        type="button"
+        className={cn("flex w-full items-center justify-between", className)}
+        onClick={(e) => {
+          ctx?.setAnchorEl(e.currentTarget);
+          ctx?.setOpen(true);
+        }}
+        {...props}
       >
         {children}
-      </SelectPrimitive.Viewport>
-    </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
-));
-SelectContent.displayName = SelectPrimitive.Content.displayName;
+      </button>
+    );
+  },
+);
+SelectTrigger.displayName = "SelectTrigger";
 
-const SelectContentWithoutPortal = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Content
-    ref={ref}
-    className={cn(
-      "relative z-50 min-w-[11.5rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-      position === "popper" &&
-        "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-      className,
-    )}
-    position={position}
-    {...props}
-  >
-    <SelectPrimitive.Viewport
-      className={cn(
-        "p-1",
-        position === "popper" &&
-          "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
-      )}
-    >
-      {children}
-    </SelectPrimitive.Viewport>
-  </SelectPrimitive.Content>
-));
-SelectContentWithoutPortal.displayName = SelectPrimitive.Content.displayName;
+const SelectContent = React.forwardRef<HTMLDivElement, { className?: string; children?: React.ReactNode; position?: string }>(
+  ({ className, children }, ref) => {
+    const ctx = React.useContext(SelectContext);
+    return (
+      <MuiMenu
+        open={!!ctx?.open}
+        anchorEl={ctx?.anchorEl}
+        onClose={() => ctx?.setOpen(false)}
+        sx={{ zIndex: 50 }}
+        slotProps={{ paper: { ref, className: cn("min-w-[11.5rem]", className) } }}
+      >
+        {children}
+      </MuiMenu>
+    );
+  },
+);
+SelectContent.displayName = "SelectContent";
 
-const SelectLabel = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Label>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.Label
-    ref={ref}
-    className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
-    {...props}
-  />
-));
-SelectLabel.displayName = SelectPrimitive.Label.displayName;
+// MUI's Menu already portals via its own Popper/Modal internally — no
+// separate "without portal" variant is meaningful, so this is the same implementation.
+const SelectContentWithoutPortal = SelectContent;
+
+const SelectLabel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)} {...props} />
+  ),
+);
+SelectLabel.displayName = "SelectLabel";
 
 const SelectItem = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Item
-    ref={ref}
-    className={cn(
-      "relative flex w-full cursor-pointer select-none items-center rounded-sm px-3 py-1.5 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className,
-    )}
-    {...props}
-  >
-    <SelectPrimitive.ItemText>
+  HTMLLIElement,
+  { className?: string; children?: React.ReactNode; value: string; disabled?: boolean }
+>(({ className, children, value, disabled }, ref) => {
+  const ctx = React.useContext(SelectContext);
+  return (
+    <MuiMenuItem
+      ref={ref}
+      disabled={disabled}
+      selected={ctx?.value === value}
+      className={cn("relative flex w-full cursor-pointer select-none items-center rounded-sm px-3 py-1.5 text-sm", className)}
+      onClick={() => {
+        ctx?.onValueChange?.(value);
+        ctx?.setOpen(false);
+      }}
+    >
       <div>{children}</div>
-    </SelectPrimitive.ItemText>
-  </SelectPrimitive.Item>
-));
-SelectItem.displayName = SelectPrimitive.Item.displayName;
+    </MuiMenuItem>
+  );
+});
+SelectItem.displayName = "SelectItem";
 
-const SelectSeparator = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Separator>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.Separator
-    ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-muted", className)}
-    {...props}
-  />
-));
-SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
+const SelectSeparator = React.forwardRef<HTMLHRElement, React.HTMLAttributes<HTMLHRElement>>(
+  ({ className, ...props }, ref) => <hr ref={ref} className={cn("-mx-1 my-1 border-t bg-muted", className)} {...props} />,
+);
+SelectSeparator.displayName = "SelectSeparator";
 
 export {
   Select,

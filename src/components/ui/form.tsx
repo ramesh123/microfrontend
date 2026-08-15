@@ -1,6 +1,5 @@
 import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
-import { Slot } from "@radix-ui/react-slot"
+import { Slot } from "@/lib/slot"
 import {
   Controller,
   FormProvider,
@@ -88,7 +87,7 @@ function FormItem({ className, ...props }: React.ComponentProps<"div">) {
 function FormLabel({
   className,
   ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+}: React.ComponentPropsWithoutRef<typeof Label>) {
   const { error, formItemId } = useFormField()
 
   return (

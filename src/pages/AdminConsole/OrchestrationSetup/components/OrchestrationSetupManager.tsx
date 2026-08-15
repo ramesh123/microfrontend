@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Organization } from '@/types/orchestration';
@@ -146,7 +145,7 @@ export function OrchestrationSetupManager() {
             key={org.id}
             className="rounded-lg border border-border border-b bg-muted/30 px-2 shadow-sm transition-colors last:border-b hover:border-primary/40 hover:bg-muted/50"
           >
-            <AccordionPrimitive.Header className="flex items-center gap-2 rounded-lg py-2">
+            <div className="flex items-center gap-2 rounded-lg py-2">
               <button
                 type="button"
                 className="min-w-0 flex-1 truncate text-left text-base font-semibold hover:text-primary hover:underline"
@@ -203,7 +202,6 @@ export function OrchestrationSetupManager() {
                     </AlertDialog>
                   </>
                 )}
-                <AccordionPrimitive.Trigger asChild>
                 <Button
                     size="xs"
                     variant={isExpanded ? 'destructive' : 'primary'}
@@ -212,13 +210,15 @@ export function OrchestrationSetupManager() {
                         ? 'text-white'
                         : 'bg-primary text-white hover:bg-primary/90'
                     }`}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedOrgId(isExpanded ? undefined : org.id);
+                    }}
                   >
                     {isExpanded ? 'Close' : 'Click here'}
                   </Button>
-                </AccordionPrimitive.Trigger>
               </div>
-            </AccordionPrimitive.Header>
+            </div>
             <AccordionContent className="pb-3">
               <div
                 className="mt-2 h-[340px] w-full overflow-hidden rounded-md border border-border bg-background"

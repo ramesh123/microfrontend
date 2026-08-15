@@ -1,7 +1,7 @@
 import { BotMessageSquareIcon } from "@/icons/BotMessageSquare";
 import { GradientSave } from "@/icons/GradientSparkles";
 import { fontAwesomeIcons, isFontAwesomeIcon } from "@/icons/fontAwesomeIcons";
-import { TwitterLogoIcon } from "@radix-ui/react-icons";
+import TwitterLogoIcon from "@mui/icons-material/Twitter";
 import dynamicIconImports from "lucide-react/dynamicIconImports";
 import { lazy } from "react";
 import { FaApple, FaDiscord, FaGithub } from "react-icons/fa";

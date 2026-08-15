@@ -1,63 +1,93 @@
 import * as React from "react"
-import * as AccordionPrimitive from "@radix-ui/react-accordion"
+import MuiAccordion from "@mui/material/Accordion"
+import MuiAccordionSummary from "@mui/material/AccordionSummary"
+import MuiAccordionDetails from "@mui/material/AccordionDetails"
 import { ChevronDownIcon } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+// Radix keeps open/closed state for every item at the Accordion Root
+// (type="single"|"multiple", value/onValueChange), while MUI's Accordion
+// manages `expanded` per individual instance with no built-in grouping.
+// This context reproduces the Root-level state so AccordionItem/Trigger
+// call sites don't need to change.
+type AccordionCtx = {
+  type: "single" | "multiple"
+  value: string[]
+  toggle: (itemValue: string) => void
+}
+const AccordionContext = React.createContext<AccordionCtx | null>(null)
 
-function Accordion({
-  ...props
-}: React.ComponentProps<typeof AccordionPrimitive.Root>) {
-  return <AccordionPrimitive.Root data-slot="accordion" {...props} />
+interface AccordionProps {
+  type?: "single" | "multiple"
+  collapsible?: boolean
+  value?: string | string[]
+  defaultValue?: string | string[]
+  onValueChange?: (value: string | string[]) => void
+  className?: string
+  children?: React.ReactNode
 }
 
-function AccordionItem({
-  className,
-  ...props
-}: React.ComponentProps<typeof AccordionPrimitive.Item>) {
-  return (
-    <AccordionPrimitive.Item
-      data-slot="accordion-item"
-      className={cn("border-b last:border-b-0", className)}
-      {...props}
-    />
-  )
-}
+function Accordion({ type = "single", collapsible = true, value, defaultValue, onValueChange, className, children }: AccordionProps) {
+  const toArray = (v: string | string[] | undefined): string[] => (v == null ? [] : Array.isArray(v) ? v : [v])
+  const [internal, setInternal] = React.useState<string[]>(() => toArray(defaultValue))
+  const current = value !== undefined ? toArray(value) : internal
 
-function AccordionTrigger({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
+  const toggle = (itemValue: string) => {
+    let next: string[]
+    if (type === "single") {
+      const isOpen = current.includes(itemValue)
+      next = isOpen ? (collapsible ? [] : current) : [itemValue]
+    } else {
+      next = current.includes(itemValue) ? current.filter((v) => v !== itemValue) : [...current, itemValue]
+    }
+    setInternal(next)
+    onValueChange?.(type === "single" ? next[0] ?? "" : next)
+  }
+
   return (
-    <AccordionPrimitive.Header className="flex">
-      <AccordionPrimitive.Trigger
-        data-slot="accordion-trigger"
-        className={cn(
-          "focus-visible:border-ring focus-visible:ring-ring/50 flex flex-1 items-start justify-between gap-4 rounded-md py-4 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180",
-          className
-        )}
-        {...props}
-      >
+    <AccordionContext.Provider value={{ type, value: current, toggle }}>
+      <div data-slot="accordion" className={className}>
         {children}
-        <ChevronDownIcon className="text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200" />
-      </AccordionPrimitive.Trigger>
-    </AccordionPrimitive.Header>
+      </div>
+    </AccordionContext.Provider>
   )
 }
 
-function AccordionContent({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof AccordionPrimitive.Content>) {
+function AccordionItem({ value, className, children }: { value: string; className?: string; children?: React.ReactNode }) {
+  const ctx = React.useContext(AccordionContext)
+  const expanded = !!ctx?.value.includes(value)
+
   return (
-    <AccordionPrimitive.Content
-      data-slot="accordion-content"
-      className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down overflow-hidden text-sm"
-      {...props}
+    <MuiAccordion
+      data-slot="accordion-item"
+      className={className}
+      expanded={expanded}
+      onChange={() => ctx?.toggle(value)}
+      disableGutters
+      square
+      sx={{ boxShadow: "none", "&:before": { display: "none" } }}
     >
-      <div className={cn("pt-0 pb-2", className)}>{children}</div>
-    </AccordionPrimitive.Content>
+      {children}
+    </MuiAccordion>
+  )
+}
+
+function AccordionTrigger({ className, children }: { className?: string; children?: React.ReactNode }) {
+  return (
+    <MuiAccordionSummary
+      data-slot="accordion-trigger"
+      className={className}
+      expandIcon={<ChevronDownIcon size={16} />}
+    >
+      {children}
+    </MuiAccordionSummary>
+  )
+}
+
+function AccordionContent({ className, children }: { className?: string; children?: React.ReactNode }) {
+  return (
+    <MuiAccordionDetails data-slot="accordion-content" className={className}>
+      {children}
+    </MuiAccordionDetails>
   )
 }
 

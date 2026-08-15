@@ -9,7 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FieldValue } from "../types/organization";
-import { DialogClose } from '@radix-ui/react-dialog';
 
 interface BoundaryValueDialogProps {
   isOpen: boolean;
@@ -80,12 +79,8 @@ export function BoundaryValueDialog({ isOpen, onClose, fieldValue }: BoundaryVal
         </div>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">Close</Button>
-          </DialogClose>
-          <DialogClose asChild>
-            <Button type="button" variant="accent">Save</Button>
-          </DialogClose>
+          <Button type="button" variant="outline" onClick={onClose}>Close</Button>
+          <Button type="button" variant="accent" onClick={onClose}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

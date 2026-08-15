@@ -3,6 +3,7 @@ import { type JSX, type ReactNode, useEffect } from "react";
 import React from "react";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -15,8 +16,6 @@ import {
   DialogContent as ModalContent,
 } from "@/components/ui/dialog-with-no-close";
 
-import { DialogClose } from "@radix-ui/react-dialog";
-import * as Form from "@radix-ui/react-form";
 import { Button } from "@/components/ui/button";
 import type { modalHeaderType } from "@/types/components";
 import { cn } from "@/lib/utils";
@@ -269,7 +268,7 @@ function BaseModal({
             closeButtonClassName={closeButtonClassName}
           >
             {onSubmit ? (
-              <Form.Root
+              <form
                 onSubmit={(event) => {
                   event.preventDefault();
                   onSubmit();
@@ -277,7 +276,7 @@ function BaseModal({
                 className={formClasses}
               >
                 {modalContent}
-              </Form.Root>
+              </form>
             ) : (
               modalContent
             )}

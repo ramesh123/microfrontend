@@ -27,7 +27,6 @@ import {
 } from "@/utils/exceptionHelper";
 import { useExecuteWorkflow } from "@/hooks/use-execute-flow";
 import { ExecuteParams } from "@/pages/FlowPage/components/PageComponent/ExecuteWorkflowDialog";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { isRequestAborted } from "@/utils/apiAbort";
 import { abortWorkflowLoadSession } from "@/utils/workflowLoadSession";
 import {

@@ -2,6 +2,7 @@ import "./styles/applies.css";
 import "./styles/ag-theme-shadcn.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/context/theme";
+import { MuiThemeBridge } from "@/theme/MuiThemeBridge";
 import { AuthProvider } from "@/context/auth/authContext";
 import { WorkflowRemoteContent } from "./router";
 
@@ -25,7 +26,9 @@ export default function WorkflowRemoteApp() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
-          <WorkflowRemoteContent />
+          <MuiThemeBridge>
+            <WorkflowRemoteContent />
+          </MuiThemeBridge>
         </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>

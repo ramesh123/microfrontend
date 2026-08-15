@@ -1,6 +1,11 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Grid, Willow } from '@svar-ui/react-grid';
-import '@svar-ui/react-grid/all.css';
+import React, { useState, useMemo, useEffect } from 'react';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import TableSortLabel from '@mui/material/TableSortLabel';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,6 +22,8 @@ interface SvarDataGridWithCheckboxesProps {
   onPageSizeChange?: (size: number) => void;
 }
 
+type SortState = { id: string; dir: 'asc' | 'desc' } | null;
+
 const SvarDataGridWithCheckboxes: React.FC<SvarDataGridWithCheckboxesProps> = ({
   data = [],
   columns = [],
@@ -28,29 +35,54 @@ const SvarDataGridWithCheckboxes: React.FC<SvarDataGridWithCheckboxesProps> = ({
   onPageSizeChange,
 }) => {
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-  const checkboxContainerRef = useRef<HTMLDivElement>(null);
-  const [rowHeights, setRowHeights] = useState<number[]>([]);
+  const [sortState, setSortState] = useState<SortState>(null);
+
+  // Get row ID helper
+  const getRowId = (row: any): string => {
+    return String(row.SYSTEM_REF_ID || row.system_ref_id || row.id || row.PK || row._rowId || '');
+  };
+
+  // Sort full dataset (before pagination) so sorting is consistent across pages
+  const sortedData = useMemo(() => {
+    if (!sortState) return data;
+    const { id, dir } = sortState;
+    return [...data].sort((a, b) => {
+      const av = a[id];
+      const bv = b[id];
+      if (av == null && bv == null) return 0;
+      if (av == null) return dir === 'asc' ? -1 : 1;
+      if (bv == null) return dir === 'asc' ? 1 : -1;
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return dir === 'asc' ? av - bv : bv - av;
+      }
+      return dir === 'asc'
+        ? String(av).localeCompare(String(bv))
+        : String(bv).localeCompare(String(av));
+    });
+  }, [data, sortState]);
 
   // Calculate pagination
-  const totalPages = Math.ceil(data.length / pageSize);
+  const totalPages = Math.ceil(sortedData.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedData = useMemo(() => {
-    if (!data || !Array.isArray(data) || data.length === 0) {
+    if (!sortedData || !Array.isArray(sortedData) || sortedData.length === 0) {
       return [];
     }
-    const sliced = data.slice(startIndex, endIndex);
+    const sliced = sortedData.slice(startIndex, endIndex);
     // Remove any internal fields that shouldn't be displayed
     return sliced.map(row => {
       const { __checkbox__, ...rowWithoutCheckbox } = row;
       return rowWithoutCheckbox;
     });
-  }, [data, startIndex, endIndex]);
+  }, [sortedData, startIndex, endIndex]);
 
-  // Get row ID helper
-  const getRowId = (row: any): string => {
-    return String(row.SYSTEM_REF_ID || row.system_ref_id || row.id || row.PK || row._rowId || '');
+  const handleSort = (colId: string) => {
+    setSortState((prev) => {
+      if (!prev || prev.id !== colId) return { id: colId, dir: 'asc' };
+      if (prev.dir === 'asc') return { id: colId, dir: 'desc' };
+      return null;
+    });
   };
 
   // Handle checkbox selection
@@ -62,13 +94,13 @@ const SvarDataGridWithCheckboxes: React.FC<SvarDataGridWithCheckboxesProps> = ({
       } else {
         newSet.delete(rowId);
       }
-      
+
       // Notify parent of selection change
       if (onSelectionChange) {
         const selected = data.filter(row => newSet.has(getRowId(row)));
         onSelectionChange(selected);
       }
-      
+
       return newSet;
     });
   };
@@ -104,231 +136,76 @@ const SvarDataGridWithCheckboxes: React.FC<SvarDataGridWithCheckboxesProps> = ({
     });
   }, [data.length, currentPage]);
 
-  // Measure row heights after render - ensure we capture all rows including last one
-  useEffect(() => {
-    if (gridContainerRef.current) {
-      // Use a small delay to ensure DOM is fully rendered
-      const timeoutId = setTimeout(() => {
-        // Try multiple selectors to find grid rows
-        const rows = gridContainerRef.current?.querySelectorAll(
-          '.svar-grid tbody tr, .svar-grid tbody > div, [class*="svar-grid-row"], table tbody tr, tbody tr'
-        );
-        const heights: number[] = [];
-        if (rows && rows.length > 0) {
-          rows.forEach((row) => {
-            const height = (row as HTMLElement).offsetHeight || (row as HTMLElement).clientHeight || 35;
-            heights.push(height);
-          });
-        }
-        // If no rows found, use default height for all
-        if (heights.length === 0 && paginatedData.length > 0) {
-          const defaultHeight = 35;
-          for (let i = 0; i < paginatedData.length; i++) {
-            heights.push(defaultHeight);
-          }
-        }
-        // Ensure we have heights for all rows in paginatedData
-        if (paginatedData && paginatedData.length > heights.length) {
-          const defaultHeight = heights.length > 0 ? heights[0] : 35;
-          while (heights.length < paginatedData.length) {
-            heights.push(defaultHeight);
-          }
-        }
-        setRowHeights(heights);
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [paginatedData]);
-
-  // No scroll sync needed - checkboxes are inside the scrollable container and will scroll naturally
-
   return (
-    <div className="relative h-full w-full">
-      <style>{`
-        .svar-grid-container {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: auto;
-          min-height: 0;
-          position: relative;
-          height: 100%;
-        }
-        .svar-grid {
-          border: 1px solid #d1d5db !important;
-          width: 100%;
-        }
-        .svar-grid-cell,
-        .svar-grid-header-cell {
-          border: 1px solid #d1d5db !important;
-          border-right: 1px solid #d1d5db !important;
-          border-bottom: 1px solid #d1d5db !important;
-        }
-        /* Make ALL headers sticky and non-scrollable - comprehensive targeting */
-        .svar-grid-container table,
-        .svar-grid-container table thead,
-        .svar-grid thead,
-        table thead {
-          position: relative !important;
-        }
-        .svar-grid-container table thead,
-        .svar-grid thead,
-        table thead {
-          position: sticky !important;
-          top: 0 !important;
-          z-index: 100 !important;
-          background-color: #f9fafb !important;
-        }
-        .svar-grid-container table thead tr,
-        .svar-grid thead tr,
-        table thead tr {
-          position: sticky !important;
-          top: 0 !important;
-          z-index: 100 !important;
-          background-color: #f9fafb !important;
-        }
-        .svar-grid-container table thead th,
-        .svar-grid-container table thead td,
-        .svar-grid thead th,
-        .svar-grid thead td,
-        table thead th,
-        table thead td {
-          position: sticky !important;
-          top: 0 !important;
-          z-index: 100 !important;
-          background-color: #f9fafb !important;
-        }
-        .svar-grid-header-cell {
-          background-color: #f9fafb !important;
-          font-weight: 600 !important;
-          position: sticky !important;
-          top: 0 !important;
-          z-index: 100 !important;
-        }
-        /* Target any header element within the grid - make all sticky */
-        [class*="svar-grid"] thead,
-        [class*="svar-grid"] thead tr,
-        [class*="svar-grid"] thead th,
-        [class*="svar-grid"] thead td {
-          position: sticky !important;
-          top: 0 !important;
-          z-index: 100 !important;
-          background-color: #f9fafb !important;
-        }
-        /* Ensure first column is not cut off */
-        .svar-grid tbody tr td:first-child,
-        .svar-grid thead tr th:first-child,
-        table tbody tr td:first-child,
-        table thead tr th:first-child {
-          padding-left: 4px !important;
-        }
-        .svar-grid-row {
-          position: relative;
-        }
-        /* Ensure checkbox overlay is visible */
-        .checkbox-overlay {
-          display: flex !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-        }
-        /* Ensure checkbox header stays on top */
-        .checkbox-header-sticky {
-          position: sticky !important;
-          top: 0 !important;
-          z-index: 103 !important;
-        }
-      `}</style>
-      
-      <div className="svar-grid-container" ref={gridContainerRef} style={{ height: onPageChange ? 'calc(100% - 60px)' : '100%' }}>
+    <div className="relative h-full w-full flex flex-col">
+      <div
+        className="flex-1 overflow-auto min-h-0"
+        style={{ height: onPageChange ? 'calc(100% - 60px)' : '100%' }}
+      >
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             <span className="ml-2 text-muted-foreground">Loading...</span>
           </div>
         ) : data && Array.isArray(data) && data.length > 0 && columns && Array.isArray(columns) && columns.length > 0 ? (
-          <div className="relative h-full w-full" style={{ paddingLeft: '50px', height: '100%', overflow: 'auto' }}>
-            <Willow>
-              <Grid
-                data={paginatedData || []}
-                columns={columns}
-                reorder={true}
-              />
-            </Willow>
-            
-            {/* Checkbox overlays - positioned absolutely, scrolls with grid */}
-            <div 
-              ref={checkboxContainerRef}
-              className="absolute top-0 left-0 w-[50px] z-[102]" 
-              style={{ 
-                height: '100%',
-                overflow: 'visible',
-                pointerEvents: 'none'
-              }}
-            >
-              {/* Header checkbox - sticky and non-scrollable like other headers */}
-              <div 
-                className="h-[40px] flex items-center justify-center pointer-events-auto bg-gray-50 dark:bg-gray-800 border-r-2 border-gray-300 checkbox-overlay" 
-                style={{ 
-                  position: 'sticky', 
-                  top: 0, 
-                  zIndex: 103,
-                  height: '40px',
-                  width: '50px',
-                  flexShrink: 0,
-                  display: 'flex',
-                  visibility: 'visible',
-                  opacity: 1
-                }}
-              >
-                <Checkbox
-                  checked={isAllSelectedOnPage}
-                  onCheckedChange={handleSelectAll}
-                  className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-                />
-              </div>
-              
-              {/* Row checkboxes - positioned to match grid rows, scrolls with grid */}
-              {paginatedData && Array.isArray(paginatedData) && paginatedData.map((row, index) => {
-                const rowId = getRowId(row);
-                const isSelected = selectedRowIds.has(rowId);
-                const rowHeight = rowHeights[index] || 35;
-                // Calculate top position: header (40px) + sum of previous row heights
-                const topPosition = 40 + paginatedData.slice(0, index).reduce((sum, _, i) => sum + (rowHeights[i] || 35), 0);
-                
-                return (
-                  <div
-                    key={`checkbox-${rowId}-${index}`}
-                    className="absolute flex items-center justify-center pointer-events-auto bg-white dark:bg-gray-900 border-r-2 border-gray-300 checkbox-overlay"
-                    style={{ 
-                      top: `${topPosition}px`,
-                      height: `${rowHeight}px`,
-                      minHeight: `${rowHeight}px`,
-                      width: '50px',
-                      left: 0,
-                      zIndex: 102,
-                      display: 'flex',
-                      visibility: 'visible',
-                      opacity: 1
-                    }}
-                  >
+          <TableContainer sx={{ height: '100%' }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell padding="checkbox" sx={{ zIndex: 3 }}>
                     <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={(checked) => handleRowCheckboxChange(rowId, checked === true)}
-                      className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-                      onClick={(e) => e.stopPropagation()}
+                      checked={isAllSelectedOnPage}
+                      onCheckedChange={handleSelectAll}
                     />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  </TableCell>
+                  {columns.map((col) => (
+                    <TableCell key={col.id} style={{ width: col.width, minWidth: col.width }}>
+                      {col.sort ? (
+                        <TableSortLabel
+                          active={sortState?.id === col.id}
+                          direction={sortState?.id === col.id ? sortState.dir : 'asc'}
+                          onClick={() => handleSort(col.id)}
+                        >
+                          {col.header}
+                        </TableSortLabel>
+                      ) : (
+                        col.header
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paginatedData.map((row, index) => {
+                  const rowId = getRowId(row);
+                  const isSelected = selectedRowIds.has(rowId);
+                  return (
+                    <TableRow key={`row-${rowId}-${index}`} hover selected={isSelected}>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleRowCheckboxChange(rowId, checked === true)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableCell>
+                      {columns.map((col) => (
+                        <TableCell key={col.id} style={{ width: col.width }}>
+                          {row[col.id] ?? ''}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             No data to display
           </div>
         )}
       </div>
-      
+
       {/* Pagination Controls */}
       {data && Array.isArray(data) && data.length > 0 && onPageChange && (
         <div className="flex items-center justify-between px-4 py-2 border-t bg-gray-50 dark:bg-gray-800">
@@ -359,7 +236,7 @@ const SvarDataGridWithCheckboxes: React.FC<SvarDataGridWithCheckboxesProps> = ({
               </>
             )}
           </div>
-          
+
           {onPageChange && (
             <div className="flex items-center gap-2">
               <Button
@@ -397,4 +274,3 @@ const SvarDataGridWithCheckboxes: React.FC<SvarDataGridWithCheckboxesProps> = ({
 };
 
 export default SvarDataGridWithCheckboxes;
-

@@ -1,125 +1,124 @@
 import * as React from "react"
-import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
-
+import MuiDialog from "@mui/material/Dialog"
+import { Button, buttonVariants, type ButtonProps } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
 
-const AlertDialog = AlertDialogPrimitive.Root
+type AlertDialogCtx = { open: boolean; setOpen: (open: boolean) => void }
+const AlertDialogContext = React.createContext<AlertDialogCtx | null>(null)
 
-const AlertDialogTrigger = AlertDialogPrimitive.Trigger
+interface AlertDialogProps {
+  open?: boolean
+  defaultOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  children?: React.ReactNode
+}
 
-const AlertDialogPortal = AlertDialogPrimitive.Portal
+function AlertDialog({ open, defaultOpen, onOpenChange, children }: AlertDialogProps) {
+  const [internal, setInternal] = React.useState(defaultOpen ?? false)
+  const isOpen = open !== undefined ? open : internal
 
-const AlertDialogOverlay = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-[1290] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-    ref={ref}
-  />
-))
-AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
+  const setOpen = (next: boolean) => {
+    setInternal(next)
+    onOpenChange?.(next)
+  }
 
-const AlertDialogContent = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => (
-  <AlertDialogPortal>
-    <AlertDialogOverlay />
-    <AlertDialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-1/2 top-1/2 z-[1300] grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-1/2 data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-1/2 sm:rounded-lg",
-        className
-      )}
+  return <AlertDialogContext.Provider value={{ open: isOpen, setOpen }}>{children}</AlertDialogContext.Provider>
+}
+
+function AlertDialogTrigger({
+  asChild,
+  children,
+}: {
+  asChild?: boolean
+  children?: React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>
+}) {
+  const ctx = React.useContext(AlertDialogContext)
+  const handleClick = (e: React.MouseEvent) => {
+    children?.props.onClick?.(e)
+    ctx?.setOpen(true)
+  }
+
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children, { onClick: handleClick })
+  }
+  return <button type="button" onClick={handleClick}>{children}</button>
+}
+
+// Kept only for API compatibility — MUI's Dialog handles its own portal/overlay.
+function AlertDialogPortal({ children }: { children?: React.ReactNode }) {
+  return <>{children}</>
+}
+
+function AlertDialogContent({ className, children }: { className?: string; children?: React.ReactNode }) {
+  const ctx = React.useContext(AlertDialogContext)
+  return (
+    <MuiDialog
+      open={!!ctx?.open}
+      onClose={() => ctx?.setOpen(false)}
+      className={className}
+      maxWidth="sm"
+      fullWidth
+      sx={{ zIndex: 1300 }}
+      slotProps={{ paper: { sx: { p: 3, gap: 2, display: "flex", flexDirection: "column" } } }}
+    >
+      {children}
+    </MuiDialog>
+  )
+}
+
+function AlertDialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("flex flex-col space-y-2 text-center sm:text-left", className)} {...props} />
+}
+
+function AlertDialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
       {...props}
     />
-  </AlertDialogPortal>
-))
-AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName
+  )
+}
 
-const AlertDialogHeader = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn("flex flex-col space-y-2 text-center sm:text-left", className)}
-    {...props}
-  />
-)
-AlertDialogHeader.displayName = "AlertDialogHeader"
+function AlertDialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h2 className={cn("text-lg font-semibold", className)} {...props} />
+}
 
-const AlertDialogFooter = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-      className
-    )}
-    {...props}
-  />
-)
-AlertDialogFooter.displayName = "AlertDialogFooter"
+function AlertDialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn("text-sm text-muted-foreground", className)} {...props} />
+}
 
-const AlertDialogTitle = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Title>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Title
-    ref={ref}
-    className={cn("text-lg font-semibold", className)}
-    {...props}
-  />
-))
-AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName
+const AlertDialogAction = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, onClick, ...props }, ref) => {
+  const ctx = React.useContext(AlertDialogContext)
+  return (
+    <Button
+      ref={ref}
+      className={cn(buttonVariants(), className)}
+      onClick={(e) => {
+        onClick?.(e)
+        ctx?.setOpen(false)
+      }}
+      {...props}
+    />
+  )
+})
+AlertDialogAction.displayName = "AlertDialogAction"
 
-const AlertDialogDescription = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Description>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Description
-    ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props}
-  />
-))
-AlertDialogDescription.displayName =
-  AlertDialogPrimitive.Description.displayName
-
-const AlertDialogAction = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Action>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Action>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Action
-    ref={ref}
-    className={cn(buttonVariants(), className)}
-    {...props}
-  />
-))
-AlertDialogAction.displayName = AlertDialogPrimitive.Action.displayName
-
-const AlertDialogCancel = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Cancel>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Cancel>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Cancel
-    ref={ref}
-    className={cn(
-      buttonVariants({ variant: "outline" }),
-      "mt-2 sm:mt-0",
-      className
-    )}
-    {...props}
-  />
-))
-AlertDialogCancel.displayName = AlertDialogPrimitive.Cancel.displayName
+const AlertDialogCancel = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, onClick, ...props }, ref) => {
+  const ctx = React.useContext(AlertDialogContext)
+  return (
+    <Button
+      ref={ref}
+      variant="outline"
+      className={cn("mt-2 sm:mt-0", className)}
+      onClick={(e) => {
+        onClick?.(e)
+        ctx?.setOpen(false)
+      }}
+      {...props}
+    />
+  )
+})
+AlertDialogCancel.displayName = "AlertDialogCancel"
 
 export {
   AlertDialog,

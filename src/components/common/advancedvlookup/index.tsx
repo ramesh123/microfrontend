@@ -36,7 +36,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import useFlowStore from '@/stores/flowStore';
 import { cn } from '@/lib/utils';
-import { Arrow } from '@radix-ui/react-dropdown-menu';
 import { toast } from 'sonner';
 import { AlternativeSelect } from '@/components/ui/alternative-select';
 

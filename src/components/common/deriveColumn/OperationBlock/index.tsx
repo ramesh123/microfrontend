@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { OperationSelector } from '@/components/common/deriveColumn/OperationSelector';
 import { ParameterInput } from '@/components/common/deriveColumn/ParameterInput';
 import { AppliedOperation, OperationBlockProps, STRING_OPERATIONS } from '@/types/deriveColumn';
-import { Label } from '@radix-ui/react-label';
+import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
 

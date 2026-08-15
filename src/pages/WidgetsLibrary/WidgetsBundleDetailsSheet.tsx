@@ -1,7 +1,6 @@
 import React, { useCallback, useLayoutEffect, useState } from "react";
-import * as SheetPrimitive from "@radix-ui/react-dialog";
+import MuiDrawer from "@mui/material/Drawer";
 
-import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 /** Positions the widgets bundle details sheet below the library tabs (bundles dashboard only). */
@@ -56,30 +55,29 @@ export function WidgetsBundleDetailsSheet({
   const hasTopInset = topInset > 0;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetPrimitive.Portal>
-        <SheetPrimitive.Overlay
-          className={cn(
-            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed z-50 bg-black/50",
-            hasTopInset ? "inset-x-0 bottom-0" : "inset-0",
-          )}
-          style={hasTopInset ? { top: topInset } : undefined}
-        />
-        <SheetPrimitive.Content
-          className={cn(
-            "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right fixed right-0 z-50 flex w-[90vw] min-w-0 max-w-none flex-col gap-0 overflow-hidden border-l shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 sm:max-w-2xl",
+    <MuiDrawer
+      anchor="right"
+      open={open}
+      onClose={() => onOpenChange(false)}
+      sx={{ zIndex: 50 }}
+      slotProps={{
+        backdrop: {
+          className: cn(hasTopInset ? "inset-x-0 bottom-0" : undefined),
+          style: hasTopInset ? { top: topInset } : undefined,
+        },
+        paper: {
+          className: cn(
+            "bg-background flex flex-col gap-0 overflow-hidden border-l shadow-lg w-[90vw] min-w-0 max-w-none sm:max-w-2xl",
             hasTopInset ? "bottom-0 h-auto" : "inset-y-0 h-full",
             className,
-          )}
-          style={
-            hasTopInset
-              ? { top: topInset, height: `calc(100vh - ${topInset}px)` }
-              : undefined
-          }
-        >
-          {children}
-        </SheetPrimitive.Content>
-      </SheetPrimitive.Portal>
-    </Sheet>
+          ),
+          style: hasTopInset
+            ? { top: topInset, height: `calc(100vh - ${topInset}px)`, position: "fixed" }
+            : undefined,
+        },
+      }}
+    >
+      {children}
+    </MuiDrawer>
   );
 }

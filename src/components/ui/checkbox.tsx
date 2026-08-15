@@ -1,30 +1,31 @@
 import * as React from "react"
-import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
-import { CheckIcon } from "lucide-react"
+import MuiCheckbox from "@mui/material/Checkbox"
 
-import { cn } from "@/lib/utils"
-
-function Checkbox({
-  className,
-  ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
-  return (
-    <CheckboxPrimitive.Root
-      data-slot="checkbox"
-      className={cn(
-        "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      )}
-      {...props}
-    >
-      <CheckboxPrimitive.Indicator
-        data-slot="checkbox-indicator"
-        className="flex items-center justify-center text-current transition-none"
-      >
-        <CheckIcon className="size-3.5" />
-      </CheckboxPrimitive.Indicator>
-    </CheckboxPrimitive.Root>
-  )
+export interface CheckboxProps
+  extends Omit<React.ComponentPropsWithoutRef<typeof MuiCheckbox>, "onChange" | "checked" | "defaultChecked"> {
+  checked?: boolean | "indeterminate"
+  defaultChecked?: boolean
+  // Radix's checkbox convention (checked, then event) — kept so existing
+  // call sites (<Checkbox onCheckedChange={(v) => ...} />) don't need to change.
+  onCheckedChange?: (checked: boolean) => void
 }
+
+const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
+  ({ checked, defaultChecked, onCheckedChange, className, ...props }, ref) => {
+    return (
+      <MuiCheckbox
+        ref={ref}
+        data-slot="checkbox"
+        className={className}
+        checked={checked === "indeterminate" ? false : checked}
+        indeterminate={checked === "indeterminate"}
+        defaultChecked={defaultChecked}
+        onChange={(_event, isChecked) => onCheckedChange?.(isChecked)}
+        {...props}
+      />
+    )
+  },
+)
+Checkbox.displayName = "Checkbox"
 
 export { Checkbox }

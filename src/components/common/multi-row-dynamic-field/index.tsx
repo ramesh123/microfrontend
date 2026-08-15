@@ -55,7 +55,6 @@ import SmartCellRenderer from "@/components/core/cellRenderer";
 import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import ConditionalFilter from "../ConditionalFilter";
 import DataValidationTable from "../dataValidation/components/data-validation-table";
-import { DialogDescription } from "@radix-ui/react-dialog";
 import { saveNodeDetailsApi } from "@/controllers/API";
 import { toast } from "sonner";
 import { ApiRequestError, getDisplayErrorMessage } from "@/utils/exceptionHelper";

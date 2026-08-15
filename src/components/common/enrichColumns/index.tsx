@@ -36,7 +36,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import useSourceNodes from '@/hooks/use-source-nodes';
 import { cn } from '@/lib/utils';
-import { Arrow } from '@radix-ui/react-dropdown-menu';
 import useFlowStore from '@/stores/flowStore';
 import { HorizontalAiPanel } from '@/components/common/FilterOperations/HorizontalAiPanel';
 import { AiPredicateChatDialog } from '@/components/common/FilterOperations/AiPredicateChatDialog';

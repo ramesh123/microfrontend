@@ -1,6 +1,12 @@
-import React, { useRef, useState, useEffect } from "react";
-import { Grid } from "@svar-ui/react-grid";
-import "@svar-ui/react-grid/all.css";
+import React, { useRef, useState, useEffect, useMemo } from "react";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import TableSortLabel from "@mui/material/TableSortLabel";
+import TextField from "@mui/material/TextField";
 import PivotPanel from "./custompivottable";
 
 // ---------- Helper cell for expand / collapse ----------
@@ -32,6 +38,8 @@ interface SVGGridProps {
   data?: Array<Record<string, any>>;
   columns?: any[];
 }
+
+type SortState = { id: string; dir: "asc" | "desc" } | null;
 
 // ---------- Multi-level grouping helpers ----------
 const buildGroupedFlatData = (
@@ -100,6 +108,15 @@ const isRowVisible = (row: any, flat: any[]): boolean => {
   return true;
 };
 
+const renderCellContent = (col: any, row: any, onaction: (ev: any) => void) => {
+  if (col.cellRenderer) return col.cellRenderer(row);
+  if (col.cell) {
+    const CellComp = col.cell;
+    return <CellComp row={row} onaction={onaction} />;
+  }
+  return row[col.id] ?? "";
+};
+
 // ---------- MAIN COMPONENT ----------
 const CustomSVAGrid: React.FC<SVGGridProps> = ({
   width = "100%",
@@ -114,6 +131,8 @@ const CustomSVAGrid: React.FC<SVGGridProps> = ({
   const [gridColumns, setGridColumns] = useState<any[]>([]);
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [groupedFlat, setGroupedFlat] = useState<any[]>([]);
+  const [sortState, setSortState] = useState<SortState>(null);
+  const [filters, setFilters] = useState<Record<string, string>>({});
 
   // build base columns from data
   useEffect(() => {
@@ -179,45 +198,99 @@ const CustomSVAGrid: React.FC<SVGGridProps> = ({
     setRowGroups((s) => s.filter((c) => c !== col));
   };
 
+  const handleSort = (id: string) => {
+    setSortState((prev) => {
+      if (!prev || prev.id !== id) return { id, dir: "asc" };
+      if (prev.dir === "asc") return { id, dir: "desc" };
+      return null;
+    });
+  };
+
+  const handleFilterChange = (id: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [id]: value }));
+  };
+
+  // filtering + sorting only apply in flat (non-grouped) mode, since grouping relies on
+  // a stable flattened ancestor list (isRowVisible) that filtering/sorting would break.
+  const flatColumns = useMemo(
+    () => gridColumns.filter((c) => visibleColumns.includes(c.id)),
+    [gridColumns, visibleColumns]
+  );
+
+  const processedData = useMemo(() => {
+    if (rowGroups.length > 0) return data;
+
+    let rows = data;
+    const activeFilters = Object.entries(filters).filter(([, v]) => v);
+    if (activeFilters.length) {
+      rows = rows.filter((row) =>
+        activeFilters.every(([id, v]) =>
+          String(row[id] ?? "").toLowerCase().includes(v.toLowerCase())
+        )
+      );
+    }
+
+    if (sortState) {
+      const { id, dir } = sortState;
+      rows = [...rows].sort((a, b) => {
+        const av = a[id];
+        const bv = b[id];
+        if (av == null && bv == null) return 0;
+        if (av == null) return dir === "asc" ? -1 : 1;
+        if (bv == null) return dir === "asc" ? 1 : -1;
+        if (typeof av === "number" && typeof bv === "number") {
+          return dir === "asc" ? av - bv : bv - av;
+        }
+        return dir === "asc"
+          ? String(av).localeCompare(String(bv))
+          : String(bv).localeCompare(String(av));
+      });
+    }
+
+    return rows;
+  }, [data, filters, sortState, rowGroups.length]);
+
   // final visible rows (consider ancestors' expanded state)
-  const finalData = rowGroups.length === 0 ? data : groupedFlat.filter((r) => isRowVisible(r, groupedFlat));
+  const finalData =
+    rowGroups.length === 0
+      ? processedData
+      : groupedFlat.filter((r) => isRowVisible(r, groupedFlat));
 
   const columnsWithGroupToggle =
-  rowGroups.length === 0
-    ? gridColumns.filter((c) => visibleColumns.includes(c.id))
-    : [
-        {
-          id: "__group_toggle",
-          header: "",
-          width: 40,
-          cell: GroupToggleCell,
-        },
-        {
-          id: "__group_label",
-          header: rowGroups.join(" → "),
-          width: 250,
-          cellRenderer: (row) => {
-            if (row.__group) {
-              return (
-                " ".repeat(row.__level * 4) +
-                `${row.groupKey} (${row.count})`
-              );
-            }
-            return "";
+    rowGroups.length === 0
+      ? flatColumns
+      : [
+          {
+            id: "__group_toggle",
+            header: "",
+            width: 40,
+            cell: GroupToggleCell,
           },
-        },
-        ...gridColumns
-          .filter((c) => visibleColumns.includes(c.id))
-          .map((col) => ({
+          {
+            id: "__group_label",
+            header: rowGroups.join(" → "),
+            width: 250,
+            cellRenderer: (row: any) => {
+              if (row.__group) {
+                return (
+                  " ".repeat(row.__level * 4) +
+                  `${row.groupKey} (${row.count})`
+                );
+              }
+              return "";
+            },
+          },
+          ...flatColumns.map((col) => ({
             ...col,
-             sortable: true,     // enables sorting
-            filter: true,       //  enables filtering
-            cellRenderer: (row) => {
+            cellRenderer: (row: any) => {
               if (row.__group) return "";
               return row[col.id] ?? "";
             },
           })),
-      ];
+        ];
+
+  const hasFilterableColumn =
+    rowGroups.length === 0 && flatColumns.some((c) => c.filter);
 
   // sizes
   const dynamicHeight = typeof height === "number" ? `${height}px` : height;
@@ -236,17 +309,6 @@ const CustomSVAGrid: React.FC<SVGGridProps> = ({
         overflow: "hidden",
       }}
     >
-      {/* local style to hide the group-label for leaf rows (so child rows show real columns cleanly) */}
-      <style>
-        {`
-          /* If you need to target actual svar grid classes, adjust selectors.
-             Here we hide the second cell for rows that we tag as leaves via __leaf flag */
-          .svar-grid-row[data-leaf="true"] .svar-grid-cell:nth-child(2) {
-            display: none !important;
-          }
-        `}
-      </style>
-
       {/* Toolbar */}
       <div
         style={{
@@ -262,8 +324,8 @@ const CustomSVAGrid: React.FC<SVGGridProps> = ({
             onClick={() => setPivotMode((prev) => !prev)}
             className={`
             relative w-10 h-5 rounded-full transition-all duration-200
-            ${pivotMode 
-                ? "bg-primary" 
+            ${pivotMode
+                ? "bg-primary"
                 : "bg-muted dark:bg-muted/6 "}
             `}
         >
@@ -283,20 +345,63 @@ const CustomSVAGrid: React.FC<SVGGridProps> = ({
 
       {/* Panel + Grid */}
       <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
-        
 
         <div style={{ flex: 1, height: "100%", overflow: "auto" }}>
-          <Grid
-            data={finalData.map((row) => {
-              // we add a data attribute so the CSS above can hide the second cell for leaf rows.
-              if (row.__group) return row;
-              return { __leaf: true, ...row };
-            })}
-            columns={columnsWithGroupToggle}
-            // handle custom action from GroupToggleCell; svar-grid may need a specific prop name.
-            // We're using a dumb prop name "onaction" in GroupToggleCell that calls this handler.
-            onToggleGroup={(ev: any) => handleToggleGroup(ev)}
-          />
+          <TableContainer sx={{ maxHeight: "100%" }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow>
+                  {columnsWithGroupToggle.map((col) => (
+                    <TableCell
+                      key={col.id}
+                      style={{ width: col.width, minWidth: col.width }}
+                    >
+                      {col.sortable && rowGroups.length === 0 ? (
+                        <TableSortLabel
+                          active={sortState?.id === col.id}
+                          direction={sortState?.id === col.id ? sortState.dir : "asc"}
+                          onClick={() => handleSort(col.id)}
+                        >
+                          {col.header}
+                        </TableSortLabel>
+                      ) : (
+                        col.header
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                {hasFilterableColumn && (
+                  <TableRow>
+                    {columnsWithGroupToggle.map((col) => (
+                      <TableCell key={`filter-${col.id}`} style={{ width: col.width }}>
+                        {col.filter ? (
+                          <TextField
+                            variant="standard"
+                            size="small"
+                            placeholder="Filter..."
+                            value={filters[col.id] ?? ""}
+                            onChange={(e) => handleFilterChange(col.id, e.target.value)}
+                            fullWidth
+                          />
+                        ) : null}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                )}
+              </TableHead>
+              <TableBody>
+                {finalData.map((row, index) => (
+                  <TableRow key={row.__path ? `${row.__path}-${index}` : row.id ?? index} hover>
+                    {columnsWithGroupToggle.map((col) => (
+                      <TableCell key={col.id} style={{ width: col.width }}>
+                        {renderCellContent(col, row, handleToggleGroup)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </div>
         {pivotMode && (
           <div style={{ height: "100%", overflowY: "auto" }}>
