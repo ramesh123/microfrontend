@@ -1,17 +1,26 @@
 import * as React from "react"
-import MuiSnackbar from "@mui/material/Snackbar"
-import MuiAlert from "@mui/material/Alert"
-import IconButton from "@mui/material/IconButton"
-import CloseIcon from "@mui/icons-material/Close"
+import "@material/web/iconbutton/icon-button.js"
+import "@material/web/button/text-button.js"
+import { X as CloseIcon } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+// ToastAction used Tailwind's group-[.destructive]: selectors to pick up its
+// hover/border colors from the ancestor Toast's variant — that only works
+// because a plain <button> renders in the light DOM. md-text-button renders
+// its actual surface inside a shadow root, which Tailwind utility classes on
+// the host element can't reach, so this context carries the variant down
+// directly instead (same shape as how Button itself maps variant -> color).
+const ToastVariantContext = React.createContext<"default" | "destructive">("default")
+
 // NOTE: nothing in this app currently mounts a <ToastProvider>/<ToastViewport>
 // tree using these components — src/hooks/use-toast.ts only consumes the
-// ToastProps/ToastActionElement *types* below. Converted faithfully to MUI
-// (Snackbar/Alert) to preserve the existing API shape in case a Toaster gets
-// wired up later; behavior is unchanged (still not rendered anywhere).
+// ToastProps/ToastActionElement *types* below. Converted faithfully (still
+// not rendered anywhere) to preserve the existing API shape in case a
+// Toaster gets wired up later. No @material/web snackbar component exists
+// yet (a known gap in the library), so this is a plain fixed-position card
+// rather than a library primitive.
 
 const ToastProvider = ({ children }: { children?: React.ReactNode }) => <>{children}</>
 
@@ -45,54 +54,59 @@ interface ToastRootProps extends React.HTMLAttributes<HTMLDivElement>, VariantPr
 }
 
 const Toast = React.forwardRef<HTMLDivElement, ToastRootProps>(
-  ({ className, variant, open = true, onOpenChange, children, ...props }, ref) => {
+  ({ className, variant = "default", open = true, onOpenChange, children, ...props }, ref) => {
+    if (!open) return null
     return (
-      <MuiSnackbar
-        open={open}
-        onClose={() => onOpenChange?.(false)}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <MuiAlert
+      <ToastVariantContext.Provider value={variant ?? "default"}>
+        <div
           ref={ref}
-          severity={variant === "destructive" ? "error" : undefined}
+          role="status"
           className={cn(toastVariants({ variant }), className)}
           {...props}
         >
           {children}
-        </MuiAlert>
-      </MuiSnackbar>
+        </div>
+      </ToastVariantContext.Provider>
     )
   },
 )
 Toast.displayName = "Toast"
 
-const ToastAction = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
-  ({ className, ...props }, ref) => (
-    <button
-      ref={ref}
-      className={cn(
-        "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-secondary focus:outline-none focus:ring-1 focus:ring-ring disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
-        className,
-      )}
-      {...props}
-    />
-  ),
+const ToastAction = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
+  ({ className, ...props }, ref) => {
+    const variant = React.useContext(ToastVariantContext)
+    return (
+      <md-text-button
+        ref={ref}
+        className={cn("h-8 shrink-0 text-sm font-medium", className)}
+        style={
+          variant === "destructive"
+            ? ({
+                "--md-text-button-label-text-color": "var(--destructive-foreground)",
+                "--md-text-button-hover-label-text-color": "var(--destructive-foreground)",
+                "--md-text-button-hover-state-layer-color": "var(--destructive-foreground)",
+              } as React.CSSProperties)
+            : undefined
+        }
+        {...props}
+      />
+    )
+  },
 )
 ToastAction.displayName = "ToastAction"
 
-const ToastClose = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
+const ToastClose = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   ({ className, ...props }, ref) => (
-    <IconButton
+    <md-icon-button
       ref={ref}
-      size="small"
       className={cn(
         "absolute right-1 top-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100",
         className,
       )}
       {...props}
     >
-      <CloseIcon sx={{ fontSize: 16 }} />
-    </IconButton>
+      <CloseIcon size={16} />
+    </md-icon-button>
   ),
 )
 ToastClose.displayName = "ToastClose"

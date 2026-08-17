@@ -1,103 +1,103 @@
-import * as React from "react"
-import MuiPopover from "@mui/material/Popover"
+import * as React from "react";
+import "@material/web/menu/menu.js";
 
+// No @material/web "popover" component exists — md-menu is reused as the
+// generic anchored-surface engine here (same as select.tsx/dropdown-menu.tsx),
+// anchored by element id rather than MUI's anchorEl reference.
 type PopoverCtx = {
-  open: boolean
-  setOpen: (open: boolean) => void
-  anchorEl: HTMLElement | null
-  setAnchorEl: (el: HTMLElement | null) => void
-}
-const PopoverContext = React.createContext<PopoverCtx | null>(null)
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  anchorId: string;
+};
+const PopoverContext = React.createContext<PopoverCtx | null>(null);
 
 interface PopoverProps {
-  open?: boolean
-  defaultOpen?: boolean
-  onOpenChange?: (open: boolean) => void
-  children?: React.ReactNode
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children?: React.ReactNode;
 }
 
 function Popover({ open, defaultOpen, onOpenChange, children }: PopoverProps) {
-  const [internalOpen, setInternalOpen] = React.useState(defaultOpen ?? false)
-  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
-  const isOpen = open !== undefined ? open : internalOpen
+  const [internalOpen, setInternalOpen] = React.useState(defaultOpen ?? false);
+  const anchorId = React.useId();
+  const isOpen = open !== undefined ? open : internalOpen;
 
   const setOpen = (next: boolean) => {
-    setInternalOpen(next)
-    onOpenChange?.(next)
-  }
+    setInternalOpen(next);
+    onOpenChange?.(next);
+  };
 
   return (
-    <PopoverContext.Provider value={{ open: isOpen, setOpen, anchorEl, setAnchorEl }}>
+    <PopoverContext.Provider value={{ open: isOpen, setOpen, anchorId }}>
       {children}
     </PopoverContext.Provider>
-  )
+  );
 }
 
 function PopoverTrigger({
   asChild,
   children,
 }: {
-  asChild?: boolean
-  children?: React.ReactNode
+  asChild?: boolean;
+  children?: React.ReactElement<{ onClick?: (e: React.MouseEvent<HTMLElement>) => void; id?: string }>;
 }) {
-  const ctx = React.useContext(PopoverContext)
-  const isElement = React.isValidElement<{ onClick?: (e: React.MouseEvent<HTMLElement>) => void }>(children)
+  const ctx = React.useContext(PopoverContext);
+  const isElement = React.isValidElement<{ onClick?: (e: React.MouseEvent<HTMLElement>) => void; id?: string }>(children);
 
-  const handleClick = (e: React.MouseEvent<HTMLElement>) => {
-    ctx?.setAnchorEl(e.currentTarget)
-    ctx?.setOpen(!ctx.open)
-  }
+  const handleClick = () => {
+    ctx?.setOpen(!ctx.open);
+  };
 
   if (asChild && isElement) {
     return React.cloneElement(children, {
+      id: ctx?.anchorId,
       onClick: (e: React.MouseEvent<HTMLElement>) => {
-        children.props.onClick?.(e)
-        handleClick(e)
+        children.props.onClick?.(e);
+        handleClick();
       },
-    })
+    });
   }
 
-  return <button type="button" data-slot="popover-trigger" onClick={handleClick}>{children}</button>
+  return (
+    <button type="button" id={ctx?.anchorId} data-slot="popover-trigger" onClick={handleClick}>
+      {children}
+    </button>
+  );
 }
 
 function PopoverAnchor({ children }: { children?: React.ReactElement }) {
-  const ctx = React.useContext(PopoverContext)
-  const ref = React.useRef<HTMLElement | null>(null)
-
-  React.useEffect(() => {
-    if (ref.current) ctx?.setAnchorEl(ref.current)
-  }, [ctx])
-
-  if (!React.isValidElement(children)) return <>{children}</>
-  return React.cloneElement(children, { ref } as never)
+  const ctx = React.useContext(PopoverContext);
+  if (!React.isValidElement(children)) return <>{children}</>;
+  return React.cloneElement(children, { id: ctx?.anchorId } as never);
 }
 
 function PopoverContent({
   className,
   align = "center",
-  sideOffset = 4,
   children,
 }: {
-  className?: string
-  align?: "start" | "center" | "end"
-  sideOffset?: number
-  children?: React.ReactNode
+  className?: string;
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  children?: React.ReactNode;
 }) {
-  const ctx = React.useContext(PopoverContext)
-  const horizontal = align === "start" ? "left" : align === "end" ? "right" : "center"
+  const ctx = React.useContext(PopoverContext);
+  const inline = align === "start" ? "start" : align === "end" ? "end" : "start";
 
   return (
-    <MuiPopover
+    <md-menu
+      anchor={ctx?.anchorId}
       open={!!ctx?.open}
-      anchorEl={ctx?.anchorEl}
-      onClose={() => ctx?.setOpen(false)}
-      anchorOrigin={{ vertical: "bottom", horizontal }}
-      transformOrigin={{ vertical: -sideOffset, horizontal }}
-      slotProps={{ paper: { className, sx: { zIndex: 1400 } } }}
+      onClosed={() => ctx?.setOpen(false)}
+      anchorCorner={`end-${inline}`}
+      menuCorner={`start-${inline}`}
+      className={className}
+      style={{ zIndex: 1400 }}
     >
       {children}
-    </MuiPopover>
-  )
+    </md-menu>
+  );
 }
 
-export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor }
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor };

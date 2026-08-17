@@ -1,16 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TableSortLabel from '@mui/material/TableSortLabel';
+import { ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import '@material/web/progress/circular-progress.js';
 
+// No @material/web data-table component exists — plain native <table>,
+// matching the pattern already used by common/tableWithPagination.
+// Checkbox/Button/Select above already render @material/web custom elements
+// internally via their own adapters (components/ui/*.tsx).
 interface SvarDataGridWithCheckboxesProps {
   data: any[];
   columns: any[];
@@ -144,61 +142,70 @@ const SvarDataGridWithCheckboxes: React.FC<SvarDataGridWithCheckboxesProps> = ({
       >
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <md-circular-progress indeterminate style={{ '--md-circular-progress-size': '32px' } as React.CSSProperties} />
             <span className="ml-2 text-muted-foreground">Loading...</span>
           </div>
         ) : data && Array.isArray(data) && data.length > 0 && columns && Array.isArray(columns) && columns.length > 0 ? (
-          <TableContainer sx={{ height: '100%' }}>
-            <Table stickyHeader size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell padding="checkbox" sx={{ zIndex: 3 }}>
-                    <Checkbox
-                      checked={isAllSelectedOnPage}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableCell>
-                  {columns.map((col) => (
-                    <TableCell key={col.id} style={{ width: col.width, minWidth: col.width }}>
-                      {col.sort ? (
-                        <TableSortLabel
-                          active={sortState?.id === col.id}
-                          direction={sortState?.id === col.id ? sortState.dir : 'asc'}
-                          onClick={() => handleSort(col.id)}
-                        >
-                          {col.header}
-                        </TableSortLabel>
-                      ) : (
-                        col.header
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedData.map((row, index) => {
-                  const rowId = getRowId(row);
-                  const isSelected = selectedRowIds.has(rowId);
-                  return (
-                    <TableRow key={`row-${rowId}-${index}`} hover selected={isSelected}>
-                      <TableCell padding="checkbox">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleRowCheckboxChange(rowId, checked === true)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </TableCell>
-                      {columns.map((col) => (
-                        <TableCell key={col.id} style={{ width: col.width }}>
-                          {row[col.id] ?? ''}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th className="sticky top-0 z-[3] border-b bg-muted px-2 py-1.5" style={{ width: 44 }}>
+                  <Checkbox
+                    checked={isAllSelectedOnPage}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </th>
+                {columns.map((col) => (
+                  <th
+                    key={col.id}
+                    className="sticky top-0 z-[2] border-b bg-muted px-2 py-1.5 text-left font-medium"
+                    style={{ width: col.width, minWidth: col.width }}
+                  >
+                    {col.sort ? (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                        onClick={() => handleSort(col.id)}
+                      >
+                        {col.header}
+                        {sortState?.id === col.id ? (
+                          sortState.dir === 'asc' ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          )
+                        ) : null}
+                      </button>
+                    ) : (
+                      col.header
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedData.map((row, index) => {
+                const rowId = getRowId(row);
+                const isSelected = selectedRowIds.has(rowId);
+                return (
+                  <tr key={`row-${rowId}-${index}`} className={isSelected ? 'bg-muted/60' : 'hover:bg-muted/50'}>
+                    <td className="border-b px-2 py-1.5">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => handleRowCheckboxChange(rowId, checked === true)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+                    {columns.map((col) => (
+                      <td key={col.id} className="border-b px-2 py-1.5" style={{ width: col.width }}>
+                        {row[col.id] ?? ''}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             No data to display

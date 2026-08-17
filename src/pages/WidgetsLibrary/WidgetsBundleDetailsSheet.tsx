@@ -1,7 +1,11 @@
 import React, { useCallback, useLayoutEffect, useState } from "react";
-import MuiDrawer from "@mui/material/Drawer";
 
 import { cn } from "@/lib/utils";
+
+// No @material/web drawer component exists at a stable path — plain
+// fixed-position sliding panel + backdrop, same pattern as components/ui/sheet.tsx,
+// but keeping this file's bespoke "top inset" positioning (panel starts below
+// the dashboard tabs rather than the full viewport height).
 
 /** Positions the widgets bundle details sheet below the library tabs (bundles dashboard only). */
 function useBundleDetailsSheetTopInset(
@@ -55,29 +59,35 @@ export function WidgetsBundleDetailsSheet({
   const hasTopInset = topInset > 0;
 
   return (
-    <MuiDrawer
-      anchor="right"
-      open={open}
-      onClose={() => onOpenChange(false)}
-      sx={{ zIndex: 50 }}
-      slotProps={{
-        backdrop: {
-          className: cn(hasTopInset ? "inset-x-0 bottom-0" : undefined),
-          style: hasTopInset ? { top: topInset } : undefined,
-        },
-        paper: {
-          className: cn(
-            "bg-background flex flex-col gap-0 overflow-hidden border-l shadow-lg w-[90vw] min-w-0 max-w-none sm:max-w-2xl",
-            hasTopInset ? "bottom-0 h-auto" : "inset-y-0 h-full",
-            className,
-          ),
-          style: hasTopInset
-            ? { top: topInset, height: `calc(100vh - ${topInset}px)`, position: "fixed" }
-            : undefined,
-        },
-      }}
-    >
-      {children}
-    </MuiDrawer>
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, pointerEvents: open ? "auto" : "none" }}>
+      <div
+        onClick={() => onOpenChange(false)}
+        className={cn(hasTopInset ? "inset-x-0 bottom-0" : undefined)}
+        style={{
+          position: "absolute",
+          ...(hasTopInset ? { top: topInset } : { inset: 0 }),
+          background: "rgba(0,0,0,0.5)",
+          opacity: open ? 1 : 0,
+          transition: "opacity 0.2s ease",
+        }}
+      />
+      <div
+        style={{
+          position: "fixed",
+          right: 0,
+          transform: open ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.25s ease",
+          ...(hasTopInset
+            ? { top: topInset, height: `calc(100vh - ${topInset}px)` }
+            : { top: 0, height: "100vh" }),
+        }}
+        className={cn(
+          "bg-background flex flex-col gap-0 overflow-hidden border-l shadow-lg w-[90vw] min-w-0 max-w-none sm:max-w-2xl",
+          className,
+        )}
+      >
+        {children}
+      </div>
+    </div>
   );
 }

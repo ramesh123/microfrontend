@@ -1,26 +1,33 @@
-import * as React from "react"
-import MuiSwitch from "@mui/material/Switch"
+import * as React from "react";
+import "@material/web/switch/switch.js";
 
-export interface SwitchProps
-  extends Omit<React.ComponentPropsWithoutRef<typeof MuiSwitch>, "onChange"> {
+export interface SwitchProps extends Omit<React.HTMLAttributes<HTMLElement>, "onChange"> {
+  checked?: boolean;
+  defaultChecked?: boolean;
+  disabled?: boolean;
   // Radix's switch convention — kept so existing call sites
   // (<Switch onCheckedChange={(v) => ...} />) don't need to change.
-  onCheckedChange?: (checked: boolean) => void
+  onCheckedChange?: (checked: boolean) => void;
 }
 
-const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
-  ({ onCheckedChange, className, ...props }, ref) => {
+// md-switch's "checked" state is exposed as the `selected` property, not
+// `checked` — see node_modules/@material/web/switch/internal/switch.d.ts.
+const Switch = React.forwardRef<HTMLElement, SwitchProps>(
+  ({ checked, defaultChecked, onCheckedChange, className, ...props }, ref) => {
     return (
-      <MuiSwitch
+      <md-switch
         ref={ref}
         data-slot="switch"
         className={className}
-        onChange={(_event, checked) => onCheckedChange?.(checked)}
+        selected={checked ?? defaultChecked}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          onCheckedChange?.((e.target as unknown as { selected: boolean }).selected)
+        }
         {...props}
       />
-    )
+    );
   },
-)
-Switch.displayName = "Switch"
+);
+Switch.displayName = "Switch";
 
-export { Switch }
+export { Switch };

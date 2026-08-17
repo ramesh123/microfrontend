@@ -38,7 +38,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router'
 import { RoutesApp } from './router'
 import { ThemeProvider } from '@/context/theme'
-import { MuiThemeBridge } from '@/theme/MuiThemeBridge'
 import { AuthProvider } from '@/context/auth/authContext'
 import { ReactFlowProvider } from '@xyflow/react'
 import ChunkLoadErrorBoundary from '@/components/common/ChunkLoadErrorBoundary'
@@ -58,19 +57,17 @@ createRoot(document.getElementById('root')!).render(
             <DndProvider backend={HTML5Backend}>
               <ReactFlowProvider>
                 <ThemeProvider>
-                  <MuiThemeBridge>
-                    <Toaster
-                      position="top-right"
-                      className="z-[200]"
-                      richColors
-                      closeButton
-                      duration={5000}
-                      swipeDirections={["right", "left"]}
-                      visibleToasts={6}
-                      expand
-                    />
-                    <RoutesApp />
-                  </MuiThemeBridge>
+                  <Toaster
+                    position="top-right"
+                    className="z-[200]"
+                    richColors
+                    closeButton
+                    duration={5000}
+                    swipeDirections={["right", "left"]}
+                    visibleToasts={6}
+                    expand
+                  />
+                  <RoutesApp />
                 </ThemeProvider>
               </ReactFlowProvider>
             </DndProvider>

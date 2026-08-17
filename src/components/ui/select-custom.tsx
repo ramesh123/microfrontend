@@ -1,15 +1,15 @@
 import * as React from "react";
-import MuiMenu from "@mui/material/Menu";
-import MuiMenuItem from "@mui/material/MenuItem";
+import "@material/web/menu/menu.js";
+import "@material/web/menu/menu-item.js";
 import { cn } from "@/lib/utils";
 
+// Same md-menu anchor-by-id approach as components/ui/select.tsx.
 type SelectCtx = {
   value?: string;
   onValueChange?: (value: string) => void;
   open: boolean;
   setOpen: (open: boolean) => void;
-  anchorEl: HTMLElement | null;
-  setAnchorEl: (el: HTMLElement | null) => void;
+  anchorId: string;
 };
 const SelectContext = React.createContext<SelectCtx | null>(null);
 
@@ -26,7 +26,7 @@ function Select({
 }) {
   const [internal, setInternal] = React.useState(defaultValue ?? "");
   const [open, setOpen] = React.useState(false);
-  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
+  const anchorId = React.useId();
   const currentValue = value !== undefined ? value : internal;
 
   const handleChange = (v: string) => {
@@ -35,7 +35,7 @@ function Select({
   };
 
   return (
-    <SelectContext.Provider value={{ value: currentValue, onValueChange: handleChange, open, setOpen, anchorEl, setAnchorEl }}>
+    <SelectContext.Provider value={{ value: currentValue, onValueChange: handleChange, open, setOpen, anchorId }}>
       {children}
     </SelectContext.Provider>
   );
@@ -57,11 +57,9 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttrib
       <button
         ref={ref}
         type="button"
+        id={ctx?.anchorId}
         className={cn("flex w-full items-center justify-between", className)}
-        onClick={(e) => {
-          ctx?.setAnchorEl(e.currentTarget);
-          ctx?.setOpen(true);
-        }}
+        onClick={() => ctx?.setOpen(true)}
         {...props}
       >
         {children}
@@ -71,26 +69,27 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttrib
 );
 SelectTrigger.displayName = "SelectTrigger";
 
-const SelectContent = React.forwardRef<HTMLDivElement, { className?: string; children?: React.ReactNode; position?: string }>(
+const SelectContent = React.forwardRef<HTMLElement, { className?: string; children?: React.ReactNode; position?: string }>(
   ({ className, children }, ref) => {
     const ctx = React.useContext(SelectContext);
     return (
-      <MuiMenu
+      <md-menu
+        ref={ref}
+        anchor={ctx?.anchorId}
         open={!!ctx?.open}
-        anchorEl={ctx?.anchorEl}
-        onClose={() => ctx?.setOpen(false)}
-        sx={{ zIndex: 50 }}
-        slotProps={{ paper: { ref, className: cn("min-w-[11.5rem]", className) } }}
+        onClosed={() => ctx?.setOpen(false)}
+        className={cn("min-w-[11.5rem]", className)}
+        style={{ zIndex: 50 }}
       >
         {children}
-      </MuiMenu>
+      </md-menu>
     );
   },
 );
 SelectContent.displayName = "SelectContent";
 
-// MUI's Menu already portals via its own Popper/Modal internally — no
-// separate "without portal" variant is meaningful, so this is the same implementation.
+// md-menu already portals internally (positioning: 'fixed'/'popover') — no
+// separate "without portal" variant is meaningful, same as before.
 const SelectContentWithoutPortal = SelectContent;
 
 const SelectLabel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
@@ -101,12 +100,12 @@ const SelectLabel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 SelectLabel.displayName = "SelectLabel";
 
 const SelectItem = React.forwardRef<
-  HTMLLIElement,
+  HTMLElement,
   { className?: string; children?: React.ReactNode; value: string; disabled?: boolean }
 >(({ className, children, value, disabled }, ref) => {
   const ctx = React.useContext(SelectContext);
   return (
-    <MuiMenuItem
+    <md-menu-item
       ref={ref}
       disabled={disabled}
       selected={ctx?.value === value}
@@ -117,7 +116,7 @@ const SelectItem = React.forwardRef<
       }}
     >
       <div>{children}</div>
-    </MuiMenuItem>
+    </md-menu-item>
   );
 });
 SelectItem.displayName = "SelectItem";

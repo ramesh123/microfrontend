@@ -1,7 +1,7 @@
 import * as React from "react"
-import MuiDialog from "@mui/material/Dialog"
 import { Button, buttonVariants, type ButtonProps } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import "@material/web/dialog/dialog.js"
 
 type AlertDialogCtx = { open: boolean; setOpen: (open: boolean) => void }
 const AlertDialogContext = React.createContext<AlertDialogCtx | null>(null)
@@ -44,25 +44,41 @@ function AlertDialogTrigger({
   return <button type="button" onClick={handleClick}>{children}</button>
 }
 
-// Kept only for API compatibility — MUI's Dialog handles its own portal/overlay.
+// Kept only for API compatibility — md-dialog handles its own portal/overlay.
 function AlertDialogPortal({ children }: { children?: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Same slot-bucketing as dialog.tsx's DialogContent — see the comment there.
+// type="alert" gives md-dialog the alertdialog ARIA role, matching the
+// original component's semantics.
 function AlertDialogContent({ className, children }: { className?: string; children?: React.ReactNode }) {
   const ctx = React.useContext(AlertDialogContext)
+
+  const contentChildren: React.ReactNode[] = []
+  let actionsChildren: React.ReactNode = null
+
+  React.Children.forEach(children, (child) => {
+    if (React.isValidElement(child) && child.type === AlertDialogFooter) {
+      actionsChildren = (child.props as { children?: React.ReactNode }).children
+    } else {
+      contentChildren.push(child)
+    }
+  })
+
   return (
-    <MuiDialog
+    <md-dialog
+      type="alert"
       open={!!ctx?.open}
-      onClose={() => ctx?.setOpen(false)}
+      onClosed={() => ctx?.setOpen(false)}
       className={className}
-      maxWidth="sm"
-      fullWidth
-      sx={{ zIndex: 1300 }}
-      slotProps={{ paper: { sx: { p: 3, gap: 2, display: "flex", flexDirection: "column" } } }}
+      style={{ zIndex: 1300 }}
     >
-      {children}
-    </MuiDialog>
+      <div slot="content" className="flex flex-col gap-2">
+        {contentChildren}
+      </div>
+      {actionsChildren && <div slot="actions">{actionsChildren}</div>}
+    </md-dialog>
   )
 }
 

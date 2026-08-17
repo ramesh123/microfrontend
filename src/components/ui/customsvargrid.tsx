@@ -1,13 +1,10 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TableSortLabel from "@mui/material/TableSortLabel";
-import TextField from "@mui/material/TextField";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import PivotPanel from "./custompivottable";
+
+// No @material/web data-table component exists (MD3 doesn't define one) —
+// this is a plain native <table>, matching the pattern already used by
+// common/tableWithPagination (that component was never MUI-based either).
 
 // ---------- Helper cell for expand / collapse ----------
 const GroupToggleCell = ({ row, onaction }: any) => {
@@ -347,61 +344,66 @@ const CustomSVAGrid: React.FC<SVGGridProps> = ({
       <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
 
         <div style={{ flex: 1, height: "100%", overflow: "auto" }}>
-          <TableContainer sx={{ maxHeight: "100%" }}>
-            <Table stickyHeader size="small">
-              <TableHead>
-                <TableRow>
-                  {columnsWithGroupToggle.map((col) => (
-                    <TableCell
-                      key={col.id}
-                      style={{ width: col.width, minWidth: col.width }}
-                    >
-                      {col.sortable && rowGroups.length === 0 ? (
-                        <TableSortLabel
-                          active={sortState?.id === col.id}
-                          direction={sortState?.id === col.id ? sortState.dir : "asc"}
-                          onClick={() => handleSort(col.id)}
-                        >
-                          {col.header}
-                        </TableSortLabel>
-                      ) : (
-                        col.header
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                {hasFilterableColumn && (
-                  <TableRow>
-                    {columnsWithGroupToggle.map((col) => (
-                      <TableCell key={`filter-${col.id}`} style={{ width: col.width }}>
-                        {col.filter ? (
-                          <TextField
-                            variant="standard"
-                            size="small"
-                            placeholder="Filter..."
-                            value={filters[col.id] ?? ""}
-                            onChange={(e) => handleFilterChange(col.id, e.target.value)}
-                            fullWidth
-                          />
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                {columnsWithGroupToggle.map((col) => (
+                  <th
+                    key={col.id}
+                    className="sticky top-0 z-10 border-b bg-muted px-2 py-1.5 text-left font-medium"
+                    style={{ width: col.width, minWidth: col.width }}
+                  >
+                    {col.sortable && rowGroups.length === 0 ? (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                        onClick={() => handleSort(col.id)}
+                      >
+                        {col.header}
+                        {sortState?.id === col.id ? (
+                          sortState.dir === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          )
                         ) : null}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                )}
-              </TableHead>
-              <TableBody>
-                {finalData.map((row, index) => (
-                  <TableRow key={row.__path ? `${row.__path}-${index}` : row.id ?? index} hover>
-                    {columnsWithGroupToggle.map((col) => (
-                      <TableCell key={col.id} style={{ width: col.width }}>
-                        {renderCellContent(col, row, handleToggleGroup)}
-                      </TableCell>
-                    ))}
-                  </TableRow>
+                      </button>
+                    ) : (
+                      col.header
+                    )}
+                  </th>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+              </tr>
+              {hasFilterableColumn && (
+                <tr>
+                  {columnsWithGroupToggle.map((col) => (
+                    <th key={`filter-${col.id}`} className="sticky top-7 z-10 border-b bg-muted px-2 py-1" style={{ width: col.width }}>
+                      {col.filter ? (
+                        <input
+                          type="text"
+                          placeholder="Filter..."
+                          value={filters[col.id] ?? ""}
+                          onChange={(e) => handleFilterChange(col.id, e.target.value)}
+                          className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-xs font-normal outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      ) : null}
+                    </th>
+                  ))}
+                </tr>
+              )}
+            </thead>
+            <tbody>
+              {finalData.map((row, index) => (
+                <tr key={row.__path ? `${row.__path}-${index}` : row.id ?? index} className="hover:bg-muted/50">
+                  {columnsWithGroupToggle.map((col) => (
+                    <td key={col.id} className="border-b px-2 py-1.5" style={{ width: col.width }}>
+                      {renderCellContent(col, row, handleToggleGroup)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         {pivotMode && (
           <div style={{ height: "100%", overflowY: "auto" }}>

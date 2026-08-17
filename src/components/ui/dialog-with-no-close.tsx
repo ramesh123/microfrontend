@@ -1,6 +1,6 @@
 import * as React from "react";
-import MuiDialog from "@mui/material/Dialog";
 import { cn } from "@/lib/utils";
+import "@material/web/dialog/dialog.js";
 // Reuses dialog.tsx's context (not a separate instance) so the shared
 // DialogClose there works correctly whether it's rendered inside this
 // Root or dialog.tsx's — see baseModal, which shares Footer/DialogClose
@@ -44,18 +44,34 @@ function DialogTrigger({
   return <button type="button" onClick={handleClick}>{children}</button>;
 }
 
+// Same slot-bucketing as dialog.tsx's DialogContent — see the comment there.
 const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, children, ...props }, ref) => {
     const ctx = React.useContext(DialogContext);
+
+    const contentChildren: React.ReactNode[] = [];
+    let actionsChildren: React.ReactNode = null;
+
+    React.Children.forEach(children, (child) => {
+      if (React.isValidElement(child) && child.type === DialogFooter) {
+        actionsChildren = (child.props as { children?: React.ReactNode }).children;
+      } else {
+        contentChildren.push(child);
+      }
+    });
+
     return (
-      <MuiDialog
+      <md-dialog
         open={!!ctx?.open}
-        onClose={() => ctx?.setOpen(false)}
-        sx={{ zIndex: 50 }}
-        slotProps={{ paper: { ref, className: cn("rounded-xl p-3 gap-3 flex flex-col", className), ...props } }}
+        onClosed={() => ctx?.setOpen(false)}
+        onCancel={() => ctx?.setOpen(false)}
+        style={{ zIndex: 50 }}
       >
-        {children}
-      </MuiDialog>
+        <div ref={ref} slot="content" className={cn("rounded-xl gap-3 flex flex-col", className)} {...props}>
+          {contentChildren}
+        </div>
+        {actionsChildren && <div slot="actions">{actionsChildren}</div>}
+      </md-dialog>
     );
   },
 );

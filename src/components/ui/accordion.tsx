@@ -1,47 +1,47 @@
-import * as React from "react"
-import MuiAccordion from "@mui/material/Accordion"
-import MuiAccordionSummary from "@mui/material/AccordionSummary"
-import MuiAccordionDetails from "@mui/material/AccordionDetails"
-import { ChevronDownIcon } from "lucide-react"
+import * as React from "react";
+import { ChevronDownIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Radix keeps open/closed state for every item at the Accordion Root
-// (type="single"|"multiple", value/onValueChange), while MUI's Accordion
-// manages `expanded` per individual instance with no built-in grouping.
-// This context reproduces the Root-level state so AccordionItem/Trigger
-// call sites don't need to change.
+// No @material/web accordion/expansion-panel component exists — this is a
+// plain implementation. Root-level open/closed state (type="single"|
+// "multiple", value/onValueChange) is unchanged from before; only the
+// per-item rendering is now plain markup instead of MUI's Accordion family.
+// The 0fr/1fr grid-template-rows transition is a standard CSS technique for
+// animating to an intrinsic ("auto") height without JS measuring.
 type AccordionCtx = {
-  type: "single" | "multiple"
-  value: string[]
-  toggle: (itemValue: string) => void
-}
-const AccordionContext = React.createContext<AccordionCtx | null>(null)
+  type: "single" | "multiple";
+  value: string[];
+  toggle: (itemValue: string) => void;
+};
+const AccordionContext = React.createContext<AccordionCtx | null>(null);
+const AccordionItemContext = React.createContext<{ value: string; expanded: boolean } | null>(null);
 
 interface AccordionProps {
-  type?: "single" | "multiple"
-  collapsible?: boolean
-  value?: string | string[]
-  defaultValue?: string | string[]
-  onValueChange?: (value: string | string[]) => void
-  className?: string
-  children?: React.ReactNode
+  type?: "single" | "multiple";
+  collapsible?: boolean;
+  value?: string | string[];
+  defaultValue?: string | string[];
+  onValueChange?: (value: string | string[]) => void;
+  className?: string;
+  children?: React.ReactNode;
 }
 
 function Accordion({ type = "single", collapsible = true, value, defaultValue, onValueChange, className, children }: AccordionProps) {
-  const toArray = (v: string | string[] | undefined): string[] => (v == null ? [] : Array.isArray(v) ? v : [v])
-  const [internal, setInternal] = React.useState<string[]>(() => toArray(defaultValue))
-  const current = value !== undefined ? toArray(value) : internal
+  const toArray = (v: string | string[] | undefined): string[] => (v == null ? [] : Array.isArray(v) ? v : [v]);
+  const [internal, setInternal] = React.useState<string[]>(() => toArray(defaultValue));
+  const current = value !== undefined ? toArray(value) : internal;
 
   const toggle = (itemValue: string) => {
-    let next: string[]
+    let next: string[];
     if (type === "single") {
-      const isOpen = current.includes(itemValue)
-      next = isOpen ? (collapsible ? [] : current) : [itemValue]
+      const isOpen = current.includes(itemValue);
+      next = isOpen ? (collapsible ? [] : current) : [itemValue];
     } else {
-      next = current.includes(itemValue) ? current.filter((v) => v !== itemValue) : [...current, itemValue]
+      next = current.includes(itemValue) ? current.filter((v) => v !== itemValue) : [...current, itemValue];
     }
-    setInternal(next)
-    onValueChange?.(type === "single" ? next[0] ?? "" : next)
-  }
+    setInternal(next);
+    onValueChange?.(type === "single" ? next[0] ?? "" : next);
+  };
 
   return (
     <AccordionContext.Provider value={{ type, value: current, toggle }}>
@@ -49,46 +49,62 @@ function Accordion({ type = "single", collapsible = true, value, defaultValue, o
         {children}
       </div>
     </AccordionContext.Provider>
-  )
+  );
 }
 
 function AccordionItem({ value, className, children }: { value: string; className?: string; children?: React.ReactNode }) {
-  const ctx = React.useContext(AccordionContext)
-  const expanded = !!ctx?.value.includes(value)
+  const ctx = React.useContext(AccordionContext);
+  const expanded = !!ctx?.value.includes(value);
 
   return (
-    <MuiAccordion
-      data-slot="accordion-item"
-      className={className}
-      expanded={expanded}
-      onChange={() => ctx?.toggle(value)}
-      disableGutters
-      square
-      sx={{ boxShadow: "none", "&:before": { display: "none" } }}
-    >
-      {children}
-    </MuiAccordion>
-  )
+    <AccordionItemContext.Provider value={{ value, expanded }}>
+      <div data-slot="accordion-item" data-state={expanded ? "open" : "closed"} className={cn("border-b", className)}>
+        {children}
+      </div>
+    </AccordionItemContext.Provider>
+  );
 }
 
 function AccordionTrigger({ className, children }: { className?: string; children?: React.ReactNode }) {
+  const ctx = React.useContext(AccordionContext);
+  const item = React.useContext(AccordionItemContext);
+
   return (
-    <MuiAccordionSummary
+    <button
+      type="button"
       data-slot="accordion-trigger"
-      className={className}
-      expandIcon={<ChevronDownIcon size={16} />}
+      onClick={() => item && ctx?.toggle(item.value)}
+      className={cn(
+        "flex w-full flex-1 items-center justify-between gap-4 py-3 text-left text-sm font-medium transition-all hover:underline",
+        className,
+      )}
     >
       {children}
-    </MuiAccordionSummary>
-  )
+      <ChevronDownIcon
+        size={16}
+        className={cn("shrink-0 transition-transform duration-200", item?.expanded && "rotate-180")}
+      />
+    </button>
+  );
 }
 
 function AccordionContent({ className, children }: { className?: string; children?: React.ReactNode }) {
+  const item = React.useContext(AccordionItemContext);
+
   return (
-    <MuiAccordionDetails data-slot="accordion-content" className={className}>
-      {children}
-    </MuiAccordionDetails>
-  )
+    <div
+      data-slot="accordion-content"
+      style={{
+        display: "grid",
+        gridTemplateRows: item?.expanded ? "1fr" : "0fr",
+        transition: "grid-template-rows 0.2s ease",
+      }}
+    >
+      <div className="overflow-hidden">
+        <div className={cn("pb-3 pt-0 text-sm", className)}>{children}</div>
+      </div>
+    </div>
+  );
 }
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };

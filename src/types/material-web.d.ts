@@ -6,35 +6,52 @@ import type { DetailedHTMLProps, HTMLAttributes } from "react";
  * node_modules/@material/web/button/filled-button.d.ts), which TypeScript's
  * JSX checker doesn't read from. Each custom element used from TSX needs its
  * own `JSX.IntrinsicElements` entry here, or `<md-filled-button>` etc. fail to
- * type-check as valid JSX. Kept intentionally minimal (button family only) —
- * extend as more @material/web elements are adopted.
+ * type-check as valid JSX.
+ *
+ * Props are typed loosely on purpose (known Lit reactive properties spelled
+ * out, everything else falls through the index signature) rather than
+ * exhaustively mirroring every component's full internal API — the adapters
+ * in components/ui/* only ever use a small, well-understood slice of each
+ * element's surface, and typing the rest wouldn't buy real safety here.
  */
-type MdButtonProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
+type MdBase = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
   disabled?: boolean;
-  "soft-disabled"?: boolean;
-  type?: "button" | "submit" | "reset";
-  value?: string;
-  name?: string;
-  form?: string;
-  href?: string;
-  target?: "_blank" | "_parent" | "_self" | "_top" | "";
-  "trailing-icon"?: boolean;
+  [key: string]: unknown;
 };
 
-type MdIconButtonProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
-  disabled?: boolean;
-  "soft-disabled"?: boolean;
-  type?: "button" | "submit" | "reset";
-  toggle?: boolean;
-  selected?: boolean;
-};
-
-type MdCircularProgressProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
-  value?: number;
-  max?: number;
-  indeterminate?: boolean;
-  "four-color"?: boolean;
-};
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "md-filled-button": MdBase;
+      "md-outlined-button": MdBase;
+      "md-text-button": MdBase;
+      "md-elevated-button": MdBase;
+      "md-filled-tonal-button": MdBase;
+      "md-icon-button": MdBase;
+      "md-circular-progress": MdBase;
+      "md-checkbox": MdBase;
+      "md-radio": MdBase;
+      "md-switch": MdBase;
+      "md-slider": MdBase;
+      "md-divider": MdBase;
+      "md-tabs": MdBase;
+      "md-primary-tab": MdBase;
+      "md-secondary-tab": MdBase;
+      "md-menu": MdBase;
+      "md-menu-item": MdBase;
+      "md-sub-menu": MdBase;
+      "md-dialog": MdBase;
+      "md-outlined-select": MdBase;
+      "md-filled-select": MdBase;
+      "md-select-option": MdBase;
+      "md-list": MdBase;
+      "md-list-item": MdBase;
+      "md-outlined-segmented-button": MdBase;
+      "md-outlined-segmented-button-set": MdBase;
+      "md-icon": MdBase;
+    }
+  }
+}
 
 // @types/react declares its JSX namespace as `declare module "react" { namespace
 // JSX { ... } }` (see node_modules/@types/react/index.d.ts) rather than the bare
@@ -45,27 +62,33 @@ type MdCircularProgressProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HT
 declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      "md-filled-button": MdButtonProps;
-      "md-outlined-button": MdButtonProps;
-      "md-text-button": MdButtonProps;
-      "md-elevated-button": MdButtonProps;
-      "md-filled-tonal-button": MdButtonProps;
-      "md-icon-button": MdIconButtonProps;
-      "md-circular-progress": MdCircularProgressProps;
-    }
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "md-filled-button": MdButtonProps;
-      "md-outlined-button": MdButtonProps;
-      "md-text-button": MdButtonProps;
-      "md-elevated-button": MdButtonProps;
-      "md-filled-tonal-button": MdButtonProps;
-      "md-icon-button": MdIconButtonProps;
-      "md-circular-progress": MdCircularProgressProps;
+      "md-filled-button": MdBase;
+      "md-outlined-button": MdBase;
+      "md-text-button": MdBase;
+      "md-elevated-button": MdBase;
+      "md-filled-tonal-button": MdBase;
+      "md-icon-button": MdBase;
+      "md-circular-progress": MdBase;
+      "md-checkbox": MdBase;
+      "md-radio": MdBase;
+      "md-switch": MdBase;
+      "md-slider": MdBase;
+      "md-divider": MdBase;
+      "md-tabs": MdBase;
+      "md-primary-tab": MdBase;
+      "md-secondary-tab": MdBase;
+      "md-menu": MdBase;
+      "md-menu-item": MdBase;
+      "md-sub-menu": MdBase;
+      "md-dialog": MdBase;
+      "md-outlined-select": MdBase;
+      "md-filled-select": MdBase;
+      "md-select-option": MdBase;
+      "md-list": MdBase;
+      "md-list-item": MdBase;
+      "md-outlined-segmented-button": MdBase;
+      "md-outlined-segmented-button-set": MdBase;
+      "md-icon": MdBase;
     }
   }
 }
