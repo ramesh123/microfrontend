@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import TableWithPagination from "@/common/tableWithPagination";
 import { cn } from "@/lib/utils";
 import {
@@ -616,7 +617,7 @@ const handleNavigateToSidebar = useCallback((workflow: any, sidebar: string) => 
   
   
   return (
-    <div className="w-full mx-auto py-0 px-2 md:px-2 relative">
+    <div className="w-full mx-auto py-0 px-2 sm:px-3 md:px-4 relative">
       {isLoadingWorkflow && (
         <div className="absolute inset-0 z-50 flex items-center justify-center">
           
@@ -674,7 +675,7 @@ const handleNavigateToSidebar = useCallback((workflow: any, sidebar: string) => 
                 )}          
           </div>
           
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {/* <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)} disabled={isLoading || isFetching}>
               <SelectTrigger className="w-full flex-1 sm:w-[180px]">
                 <SelectValue placeholder="Sort by" />
@@ -876,14 +877,21 @@ const handleNavigateToSidebar = useCallback((workflow: any, sidebar: string) => 
               />
             </motion.div>
           ) : viewMode === "grid" ? (
-            <ScrollArea className="overflow-y-auto h-screen">
+            <ScrollArea
+              className={cn(
+                "overflow-y-auto",
+                isReconciliationListPage
+                  ? "max-h-[calc(100vh-300px)]"
+                  : "max-h-[calc(100vh-260px)]",
+              )}
+            >
               <motion.div
                 key="grid"
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2"
               >
                 {filteredAndSortedWorkflows.map((workflow) => (
                   <motion.div key={workflow.id} >

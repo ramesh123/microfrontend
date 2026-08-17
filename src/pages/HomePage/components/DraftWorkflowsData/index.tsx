@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { WorkflowCard } from "../gridComponent";
 import { WorkflowListTable } from "../listComponent"; // <-- updated import
 import { useQuery, useQueryClient } from "@tanstack/react-query";
