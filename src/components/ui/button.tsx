@@ -1,14 +1,24 @@
 import { Slot } from "@/lib/slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
-import MuiButton, { type ButtonProps as MuiButtonProps } from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
 import { cn } from "@/lib/utils";
-import { cssVar } from "@/theme/colors";
 
-// Kept for the asChild path below (Radix Slot can't render through MUI's
-// Button — it isn't a plain DOM element — so asChild usage keeps the
-// original Tailwind-classed rendering instead of the MUI one).
+// Registers the custom elements used below. @material/web has no React
+// bindings — importing a component module's side effects is what defines
+// e.g. `<md-filled-button>` as a real DOM element (see
+// node_modules/@material/web/button/filled-button.js); JSX typing for these
+// tags comes from src/types/material-web.d.ts, since @material/web only
+// augments the DOM-level HTMLElementTagNameMap, not JSX.IntrinsicElements.
+import "@material/web/button/filled-button.js";
+import "@material/web/button/filled-tonal-button.js";
+import "@material/web/button/outlined-button.js";
+import "@material/web/button/text-button.js";
+import "@material/web/iconbutton/icon-button.js";
+import "@material/web/progress/circular-progress.js";
+
+// Kept for the asChild/unstyled path below — a Web Component can't render
+// "as" an arbitrary child element the way Radix's Slot expects, so that path
+// keeps the original Tailwind-classed rendering instead of a Material Web tag.
 const buttonVariants = cva(
   "cursor-pointer noflow nopan nodelete nodrag inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
@@ -84,92 +94,94 @@ function toTitleCase(text: string) {
     ?.join(" ");
 }
 
-// --- MUI variant/size mapping -----------------------------------------
-// buttonVariants' ~20 custom `variant` values don't map 1:1 onto MUI's
-// variant+color axes (several are gradients or fixed-size icon toggles
-// with no MUI equivalent), so each gets an explicit MUI variant/color plus
-// an sx override reproducing its exact look using the same design tokens
-// (cssVar.*) the rest of the theme reads from.
-type MuiColor = "inherit" | "primary" | "success" | "info" | "warning" | "secondary" | "error";
-type Mapped = { variant: MuiButtonProps["variant"]; color?: MuiColor; sx?: MuiButtonProps["sx"] };
+// --- Material Web variant/size mapping ---------------------------------
+// M3's button family has 5 emphasis levels (filled, filled-tonal, outlined,
+// text, elevated — elevated unused here, it's meant for buttons sitting on
+// top of already-colored surfaces) plus a separate icon-button element. Our
+// ~20 custom variants collapse onto those 5 tags; icon-only sizes (icon,
+// iconSm, iconMd, node-toolbar) render <md-icon-button> instead. Each
+// variant's distinguishing color is applied as an inline CSS custom-property
+// override (the mechanism @material/web components expose for per-instance
+// styling — see material-web-tokens.css for the app-wide token bridge these
+// build on). The original gradient fills (accent/success/info/warning) have
+// no equivalent — M3's container-color token is a solid background-color,
+// not a background-image — so those fall back to a representative solid
+// color instead of the gradient; noted here since it's a real, deliberate
+// visual simplification versus the previous MUI version, not an oversight.
+type MdTag =
+  | "md-filled-button"
+  | "md-filled-tonal-button"
+  | "md-outlined-button"
+  | "md-text-button";
 
-const GRADIENTS: Record<string, string> = {
-  accent: "linear-gradient(to right, #06b6d4, #3b82f6)",
-  success: "linear-gradient(to right, #10b981, #16a34a)",
-  info: "linear-gradient(to right, #3b82f6, #6366f1)",
-  warning: "linear-gradient(to right, #f97316, #eab308)",
-};
+type Mapped = { tag: MdTag; style?: React.CSSProperties };
 
 function mapVariant(variant: ButtonProps["variant"]): Mapped {
   switch (variant) {
     case "destructive":
-      return { variant: "contained", color: "error" };
+      return {
+        tag: "md-filled-button",
+        style: { "--md-filled-button-container-color": "var(--destructive)" } as React.CSSProperties,
+      };
     case "outline":
     case "primary":
-      return { variant: "outlined", sx: { borderColor: cssVar.border, bgcolor: cssVar.card } };
     case "outliner":
-      return { variant: "outlined", sx: { bgcolor: cssVar.card } };
+      return { tag: "md-outlined-button" };
     case "outlineAmber":
-      return { variant: "outlined", sx: { borderColor: "#d97706", color: "#d97706" } };
-    case "accent":
-    case "success":
-    case "info":
-    case "warning":
       return {
-        variant: "contained",
-        sx: {
-          backgroundImage: GRADIENTS[variant],
-          color: "#fff",
-          "&:hover": { backgroundImage: GRADIENTS[variant], opacity: 0.95, transform: "translateY(-1px)" },
-        },
+        tag: "md-outlined-button",
+        style: {
+          "--md-outlined-button-outline-color": "#d97706",
+          "--md-outlined-button-label-text-color": "#d97706",
+        } as React.CSSProperties,
       };
+    case "accent":
+      return { tag: "md-filled-button", style: { "--md-filled-button-container-color": "#3b82f6" } as React.CSSProperties };
+    case "success":
+      return { tag: "md-filled-button", style: { "--md-filled-button-container-color": "#16a34a" } as React.CSSProperties };
+    case "info":
+      return { tag: "md-filled-button", style: { "--md-filled-button-container-color": "#6366f1" } as React.CSSProperties };
+    case "warning":
+      return { tag: "md-filled-button", style: { "--md-filled-button-container-color": "#f97316" } as React.CSSProperties };
     case "secondary":
-      return { variant: "outlined", sx: { bgcolor: cssVar.muted, borderColor: cssVar.muted } };
+      // Filled-tonal is M3's own "secondary emphasis" button — a direct
+      // semantic match, not a workaround.
+      return { tag: "md-filled-tonal-button" };
     case "danger":
-      return { variant: "contained", sx: { bgcolor: "#dc2626", "&:hover": { bgcolor: "#b91c1c" } } };
+      return { tag: "md-filled-button", style: { "--md-filled-button-container-color": "#dc2626" } as React.CSSProperties };
     case "ghost":
-      return { variant: "text" };
     case "ghostActive":
-      return { variant: "text", sx: { bgcolor: cssVar.muted } };
     case "menu":
     case "menu-active":
-      return { variant: "text", sx: { justifyContent: "flex-start", fontWeight: variant === "menu-active" ? 600 : 500 } };
     case "link":
-      return { variant: "text", sx: { textDecoration: "underline", textUnderlineOffset: "4px", p: 0, minWidth: 0 } };
     case "theme":
     case "disable":
-      return { variant: "text", sx: { height: 32, width: 32, minWidth: 32, p: 0, borderRadius: cssVar.radius } };
+      return { tag: "md-text-button" };
     case "default":
     default:
-      return { variant: "contained", color: "primary" };
+      return { tag: "md-filled-button" };
   }
 }
 
-function mapSize(size: ButtonProps["size"]): { sx: MuiButtonProps["sx"] } {
+const ICON_SIZES: NonNullable<ButtonProps["size"]>[] = ["icon", "iconSm", "iconMd", "node-toolbar"];
+
+function mapSize(size: ButtonProps["size"]): React.CSSProperties {
   switch (size) {
     case "md":
-      return { sx: { height: 28, py: 0.75, px: 1.5 } };
+      return { "--md-filled-button-container-height": "28px", "--md-outlined-button-container-height": "28px", "--md-text-button-container-height": "28px", "--md-filled-tonal-button-container-height": "28px" } as React.CSSProperties;
     case "sm":
-      return { sx: { height: 32, px: 1.5 } };
+      return { "--md-filled-button-container-height": "32px", "--md-outlined-button-container-height": "32px", "--md-text-button-container-height": "32px", "--md-filled-tonal-button-container-height": "32px" } as React.CSSProperties;
     case "xs":
-      return { sx: { py: 0.25, px: 1.5, minHeight: 0 } };
+      return { "--md-filled-button-container-height": "26px", "--md-outlined-button-container-height": "26px", "--md-text-button-container-height": "26px", "--md-filled-tonal-button-container-height": "26px" } as React.CSSProperties;
     case "lg":
-      return { sx: { height: 40, px: 4 } };
-    case "iconMd":
-      return { sx: { p: 0.75, minWidth: 0 } };
-    case "icon":
-      return { sx: { p: 0.5, minWidth: 0 } };
-    case "iconSm":
-      return { sx: { p: 0.25, minWidth: 0 } };
-    case "node-toolbar":
-      return { sx: { py: "5px", px: "5px", minWidth: 0 } };
+      return { "--md-filled-button-container-height": "40px", "--md-outlined-button-container-height": "40px", "--md-text-button-container-height": "40px", "--md-filled-tonal-button-container-height": "40px" } as React.CSSProperties;
     case "default":
     default:
-      return { sx: { height: 36, py: 1, px: 2 } };
+      return { "--md-filled-button-container-height": "36px", "--md-outlined-button-container-height": "36px", "--md-text-button-container-height": "36px", "--md-filled-tonal-button-container-height": "36px" } as React.CSSProperties;
   }
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+const Button = React.forwardRef<HTMLElement, ButtonProps>(
   (
     {
       className,
@@ -183,10 +195,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       children,
       ignoreTitleCase = false,
       style,
-      // Destructured out (and discarded): React.ButtonHTMLAttributes includes a
-      // legacy `color?: string` attribute that would otherwise widen the mapped
-      // MuiColor value below when spread via {...props} after `color={color}`.
-      color: _htmlColorAttr,
       ...props
     },
     ref,
@@ -196,9 +204,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       newChildren = ignoreTitleCase ? children : toTitleCase(children);
     }
 
-    // Slot can't render through MUI's Button root (it isn't a bare DOM
-    // element it can merge props into), so asChild keeps the original
-    // Tailwind-classed rendering path unchanged.
+    // Slot can't render through a Material Web custom element (it isn't a
+    // bare DOM element it can merge props into), so asChild keeps the
+    // original Tailwind-classed rendering path unchanged.
     if (asChild || unstyled) {
       const Comp = asChild ? Slot : "button";
       return (
@@ -211,14 +219,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           style={style}
           disabled={loading || disabled}
           {...(asChild ? {} : { type: type || "button" })}
-          ref={ref}
+          ref={ref as React.Ref<HTMLButtonElement>}
           {...props}
         >
           {loading ? (
             <span className="relative flex items-center justify-center">
               <span className="invisible">{newChildren}</span>
               <span className="absolute inset-0 flex items-center justify-center">
-                <CircularProgress size={16} color="inherit" />
+                <md-circular-progress indeterminate style={{ "--md-circular-progress-size": "16px" } as React.CSSProperties} />
               </span>
             </span>
           ) : (
@@ -228,28 +236,59 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       );
     }
 
-    const { variant: muiVariant, color, sx: variantSx } = mapVariant(variant);
-    const { sx: sizeSx } = mapSize(size);
+    const isIconOnly = ICON_SIZES.includes(size ?? "default") || variant === "theme" || variant === "disable";
 
-    return (
-      <MuiButton
-        ref={ref}
-        variant={muiVariant}
-        color={color}
-        type={type || "button"}
-        disabled={loading || disabled}
-        className={cn("noflow nopan nodelete nodrag", className)}
-        style={style}
-        sx={[
-          { "& svg": { pointerEvents: "none" } },
-          ...(Array.isArray(variantSx) ? variantSx : [variantSx]),
-          ...(Array.isArray(sizeSx) ? sizeSx : [sizeSx]),
-        ]}
-        startIcon={loading ? <CircularProgress size={14} color="inherit" /> : undefined}
-        {...props}
-      >
-        {loading ? <span style={{ visibility: "hidden" }}>{newChildren}</span> : newChildren}
-      </MuiButton>
+    if (isIconOnly) {
+      return (
+        <md-icon-button
+          ref={ref as React.Ref<HTMLElement>}
+          type={type || "button"}
+          disabled={loading || disabled}
+          className={cn("noflow nopan nodelete nodrag", className)}
+          style={{
+            ...(variant === "theme" || variant === "disable" ? { width: "32px", height: "32px" } : {}),
+            ...style,
+          }}
+          {...(props as React.HTMLAttributes<HTMLElement>)}
+        >
+          {loading ? (
+            <md-circular-progress indeterminate style={{ "--md-circular-progress-size": "16px" } as React.CSSProperties} />
+          ) : (
+            newChildren
+          )}
+        </md-icon-button>
+      );
+    }
+
+    const { tag: Tag, style: variantStyle } = mapVariant(variant);
+    const sizeStyle = mapSize(size);
+
+    // A runtime string can't be used with <Tag> JSX syntax and still
+    // type-check against JSX.IntrinsicElements (TS treats a capitalized JSX
+    // tag as a component reference, not a dynamic intrinsic-element lookup),
+    // so the variant-to-element choice above is rendered via createElement.
+    return React.createElement(
+      Tag,
+      {
+        ref: ref as React.Ref<HTMLElement>,
+        type: type || "button",
+        disabled: loading || disabled,
+        className: cn("noflow nopan nodelete nodrag [&_svg]:pointer-events-none", className),
+        style: { ...variantStyle, ...sizeStyle, ...style },
+        ...props,
+      },
+      loading ? (
+        <>
+          <md-circular-progress
+            slot="icon"
+            indeterminate
+            style={{ "--md-circular-progress-size": "16px" } as React.CSSProperties}
+          />
+          <span style={{ visibility: "hidden" }}>{newChildren}</span>
+        </>
+      ) : (
+        newChildren
+      ),
     );
   },
 );

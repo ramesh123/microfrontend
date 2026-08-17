@@ -1,5 +1,6 @@
 import "./styles/applies.css";
 import "./styles/ag-theme-shadcn.css";
+import "./theme/material-web-tokens.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/context/theme";
 import { MuiThemeBridge } from "@/theme/MuiThemeBridge";
