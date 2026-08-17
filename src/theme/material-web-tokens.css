@@ -1,0 +1,31 @@
+/*
+ * Bridges this app's existing CSS-custom-property theme (see src/index.css,
+ * driven by src/context/theme) into @material/web's MD3 "sys" color tokens.
+ *
+ * Every @material/web component's own tokens fall back through a chain that
+ * ends at --md-sys-color-*  (e.g. --md-filled-button-container-color falls
+ * back to --md-sys-color-primary) — see
+ * node_modules/@material/web/button/internal/filled-styles.css. Setting the
+ * sys tokens once here means every Material Web component automatically
+ * picks up whichever of the app's theme variants (light, dark, blue-light,
+ * orange-dark, purple-light, ...) is currently active on <html>, with no
+ * per-component overrides and no JS color computation required — plain CSS
+ * var() substitution works even though the underlying values are oklch()
+ * (unlike MUI's palette, nothing here runs oklch() through JS color-math).
+ */
+:root {
+  --md-sys-color-primary: var(--primary);
+  --md-sys-color-on-primary: var(--primary-foreground);
+  --md-sys-color-secondary: var(--secondary);
+  --md-sys-color-on-secondary: var(--secondary-foreground);
+  --md-sys-color-error: var(--destructive);
+  --md-sys-color-on-error: var(--primary-foreground);
+  --md-sys-color-surface: var(--card);
+  --md-sys-color-on-surface: var(--foreground);
+  --md-sys-color-surface-variant: var(--muted);
+  --md-sys-color-on-surface-variant: var(--muted-foreground);
+  --md-sys-color-outline: var(--border);
+  --md-sys-color-outline-variant: var(--border);
+  --md-sys-color-background: var(--background);
+  --md-sys-color-on-background: var(--foreground);
+}

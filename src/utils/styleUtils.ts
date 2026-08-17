@@ -1,10 +1,9 @@
 import { BotMessageSquareIcon } from "@/icons/BotMessageSquare";
 import { GradientSave } from "@/icons/GradientSparkles";
 import { fontAwesomeIcons, isFontAwesomeIcon } from "@/icons/fontAwesomeIcons";
-import TwitterLogoIcon from "@mui/icons-material/Twitter";
 import dynamicIconImports from "lucide-react/dynamicIconImports";
 import { lazy } from "react";
-import { FaApple, FaDiscord, FaGithub } from "react-icons/fa";
+import { FaApple, FaDiscord, FaGithub, FaTwitter as TwitterLogoIcon } from "react-icons/fa";
 
 export const gradients = [
   "bg-gradient-to-br from-gray-800 via-rose-700 to-violet-900",

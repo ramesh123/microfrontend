@@ -17,6 +17,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fluentui/react-jsx-runtime": "^9.4.4",
     "@hookform/resolvers": "^5.2.1",
+    "@material/web": "^2.5.0",
     "@monaco-editor/react": "^4.7.0",
     "@svar-ui/react-grid": "^2.3.2",
     "@tailwindcss/postcss": "^4.1.7",

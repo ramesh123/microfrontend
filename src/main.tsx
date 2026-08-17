@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import brandFaviconUrl from '../public/assets/KPMG.png'
 import './index.css'
+import './theme/material-web-tokens.css'
 {
   const link = document.createElement('link')
   link.rel = 'icon'

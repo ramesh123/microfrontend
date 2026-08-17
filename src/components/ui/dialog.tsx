@@ -1,9 +1,9 @@
 import * as React from "react";
-import MuiDialog from "@mui/material/Dialog";
-import CloseIcon from "@mui/icons-material/Close";
-import IconButton from "@mui/material/IconButton";
+import { X as CloseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShadTooltip from "../common/shadTooltipComponent";
+import "@material/web/dialog/dialog.js";
+import "@material/web/iconbutton/icon-button.js";
 
 type DialogCtx = { open: boolean; setOpen: (open: boolean) => void };
 // Exported so any other Dialog-like Root (e.g. a future no-close variant)
@@ -16,7 +16,7 @@ interface DialogProps {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   children?: React.ReactNode;
-  // Accepted for call-site compatibility; MUI's Dialog is always modal.
+  // Accepted for call-site compatibility; md-dialog is always modal.
   modal?: boolean;
 }
 
@@ -93,47 +93,56 @@ interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
   showOverlay?: boolean;
 }
 
+// md-dialog requires content in explicit named slots (content/actions/
+// headline) rather than free-flowing children the way MUI's Dialog took them
+// — DialogFooter's children go to slot="actions", everything else (including
+// DialogHeader/DialogTitle/DialogDescription however a call site nests them)
+// goes to slot="content" as one block. That trades the dialog's native
+// sticky-headline-with-divider treatment for zero changes to how any of the
+// ~15 call sites structure their JSX. md-dialog always renders its own
+// backdrop scrim (no prop to disable it), so `showOverlay` no longer has an
+// effect — noted here since call sites that passed `showOverlay={false}`
+// will now see a change.
 const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
   ({ className, children, hideTitle = false, hideCloseButton = false, closeButtonClassName, showOverlay = true, ...props }, ref) => {
     const ctx = React.useContext(DialogContext);
 
-    const hasDialogTitle = React.Children.toArray(children).some(
-      (child) => React.isValidElement(child) && child.type === DialogTitle,
-    );
+    const contentChildren: React.ReactNode[] = [];
+    let actionsChildren: React.ReactNode = null;
+
+    React.Children.forEach(children, (child) => {
+      if (React.isValidElement(child) && child.type === DialogFooter) {
+        actionsChildren = (child.props as { children?: React.ReactNode }).children;
+      } else {
+        contentChildren.push(child);
+      }
+    });
 
     return (
-      <MuiDialog
+      <md-dialog
         open={!!ctx?.open}
-        onClose={() => ctx?.setOpen(false)}
-        hideBackdrop={!showOverlay}
-        sx={{ zIndex: 1300 }}
-        slotProps={{
-          paper: {
-            ref,
-            className: cn("rounded-xl p-6 gap-4 flex flex-col relative", className),
-            ...props,
-          },
-        }}
+        onClosed={() => ctx?.setOpen(false)}
+        onCancel={() => ctx?.setOpen(false)}
+        className={cn("rounded-xl", className)}
+        style={{ zIndex: 1300 }}
       >
-        {!hasDialogTitle && !hideTitle && (
-          <VisuallyHidden>
-            <DialogTitle>Dialog</DialogTitle>
-          </VisuallyHidden>
-        )}
-        {children}
-        {!hideCloseButton && (
-          <ShadTooltip styleClasses="z-[1300]" content="Close" side="bottom" avoidCollisions>
-            <IconButton
-              onClick={() => ctx?.setOpen(false)}
-              className={cn("absolute right-2 top-2", closeButtonClassName)}
-              size="small"
-            >
-              <CloseIcon sx={{ fontSize: 18 }} />
-              <span className="sr-only">Close</span>
-            </IconButton>
-          </ShadTooltip>
-        )}
-      </MuiDialog>
+        <div ref={ref} slot="content" className="relative flex flex-col gap-4" {...props}>
+          {contentChildren}
+          {!hideCloseButton && (
+            <ShadTooltip styleClasses="z-[1300]" content="Close" side="bottom" avoidCollisions>
+              <md-icon-button
+                type="button"
+                onClick={() => ctx?.setOpen(false)}
+                className={cn("absolute right-2 top-2", closeButtonClassName)}
+              >
+                <CloseIcon size={18} />
+                <span className="sr-only">Close</span>
+              </md-icon-button>
+            </ShadTooltip>
+          )}
+        </div>
+        {actionsChildren && <div slot="actions">{actionsChildren}</div>}
+      </md-dialog>
     );
   },
 );

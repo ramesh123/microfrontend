@@ -1,5 +1,4 @@
 import * as React from "react"
-import MuiCollapse from "@mui/material/Collapse"
 
 type CollapsibleCtx = { open: boolean; toggle: () => void }
 const CollapsibleContext = React.createContext<CollapsibleCtx | null>(null)
@@ -72,12 +71,24 @@ function CollapsibleTrigger({
   )
 }
 
+// No @material/web component covers a generic collapsible region — plain
+// 0fr/1fr grid-template-rows transition (a standard CSS technique for
+// animating to an intrinsic/"auto" height without JS measuring).
 function CollapsibleContent({ className, children }: { className?: string; children?: React.ReactNode }) {
   const ctx = React.useContext(CollapsibleContext)
   return (
-    <MuiCollapse in={ctx?.open ?? false} data-slot="collapsible-content" className={className}>
-      {children}
-    </MuiCollapse>
+    <div
+      data-slot="collapsible-content"
+      style={{
+        display: "grid",
+        gridTemplateRows: ctx?.open ? "1fr" : "0fr",
+        transition: "grid-template-rows 0.2s ease",
+      }}
+    >
+      <div className="overflow-hidden">
+        <div className={className}>{children}</div>
+      </div>
+    </div>
   )
 }
 
