@@ -1,3 +1,4 @@
+import './lib/patchCustomElements'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import brandFaviconUrl from '../public/assets/KPMG.png'

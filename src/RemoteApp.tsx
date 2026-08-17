@@ -1,3 +1,4 @@
+import "./lib/patchCustomElements";
 import "./styles/applies.css";
 import "./styles/ag-theme-shadcn.css";
 import "./theme/material-web-tokens.css";
