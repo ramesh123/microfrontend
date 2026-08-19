@@ -1,4 +1,4 @@
-import { ChevronsUpDown, Plus, Eye, Building2, Command } from "lucide-react"
+import { ChevronsUpDown, Plus, Eye, Command } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 import {
@@ -64,13 +64,20 @@ export function ProjectsSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="h-auto min-h-0 py-1.5 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:!justify-center"
+              className="h-auto min-h-0 py-1.5 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!justify-center"
             >
-              <div className="perspective-icon-tile text-white bg-sidebar-primary flex aspect-square size-7 items-center justify-center rounded-md">
-                <Command className="size-3.5 !text-white shrink-0" />
-              </div>
-              {!isCollapsed && (
+              {isCollapsed ? (
+                <div
+                  className="perspective-icon-tile text-white bg-sidebar-primary flex aspect-square size-7 shrink-0 items-center justify-center rounded-md"
+                  aria-label={currentPerspective?.perspective_name || currentPerspective?.name || "Perspective"}
+                >
+                  <Command className="size-3.5 !text-white shrink-0" />
+                </div>
+              ) : (
                 <>
+                  <div className="perspective-icon-tile text-white bg-sidebar-primary flex aspect-square size-7 shrink-0 items-center justify-center rounded-md">
+                    <Command className="size-3.5 !text-white shrink-0" />
+                  </div>
                   <div className="grid min-w-0 flex-1 text-left text-xs leading-snug">
                     <span className="truncate font-medium">{currentPerspective?.perspective_name || currentPerspective?.name}</span>
                     <span className="truncate text-[0.65rem] text-muted-foreground">{currentPerspective?.description || "Data perspective"}</span>
@@ -82,9 +89,9 @@ export function ProjectsSwitcher() {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            align={isCollapsed ? "center" : "start"}
+            align={isCollapsed ? "start" : "start"}
             side={isMobile ? "bottom" : isCollapsed ? "right" : "bottom"}
-            sideOffset={4}
+            sideOffset={8}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Perspectives
@@ -98,12 +105,12 @@ export function ProjectsSwitcher() {
                 <DropdownMenuItem
                   key={perspectiveId}
                   onClick={() => handlePerspectiveChange(perspectiveId)}
-                  className={`gap-2 p-2 ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}`}
+                  className={isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
                 >
                   <div className="flex size-6 items-center justify-center rounded-md border">
                     <Eye className="size-3.5 shrink-0" />
                   </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
+                  <div className="grid min-w-0 flex-1 text-left text-sm leading-snug">
                     <span className="truncate font-medium">{perspectiveName}</span>
                     <span className="truncate text-xs text-muted-foreground">{perspective.description || "Data perspective"}</span>
                   </div>
@@ -113,7 +120,7 @@ export function ProjectsSwitcher() {
             })}
             
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2" onClick={() => navigate("/perspectives/create")}>
+            <DropdownMenuItem onClick={() => navigate("/perspectives/create")}>
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent ">
                 <Plus className="size-4" />
               </div>

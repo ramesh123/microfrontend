@@ -1,5 +1,6 @@
 import * as React from "react";
 import "@material/web/menu/menu.js";
+import { dismissOtherMenus, useMdMenu } from "@/lib/use-md-menu";
 
 // No @material/web "popover" component exists — md-menu is reused as the
 // generic anchored-surface engine here (same as select.tsx/dropdown-menu.tsx),
@@ -40,11 +41,22 @@ function PopoverTrigger({
   children,
 }: {
   asChild?: boolean;
-  children?: React.ReactElement<{ onClick?: (e: React.MouseEvent<HTMLElement>) => void; id?: string }>;
+  children?: React.ReactElement<{
+    onClick?: (e: React.MouseEvent<HTMLElement>) => void;
+    onPointerDown?: (e: React.PointerEvent<HTMLElement>) => void;
+    id?: string;
+  }>;
 }) {
   const ctx = React.useContext(PopoverContext);
-  const isElement = React.isValidElement<{ onClick?: (e: React.MouseEvent<HTMLElement>) => void; id?: string }>(children);
+  const isElement = React.isValidElement<{
+    onClick?: (e: React.MouseEvent<HTMLElement>) => void;
+    onPointerDown?: (e: React.PointerEvent<HTMLElement>) => void;
+    id?: string;
+  }>(children);
 
+  const handlePointerDown = () => {
+    dismissOtherMenus(ctx?.anchorId);
+  };
   const handleClick = () => {
     ctx?.setOpen(!ctx.open);
   };
@@ -52,6 +64,7 @@ function PopoverTrigger({
   if (asChild && isElement) {
     return React.cloneElement(children, {
       id: ctx?.anchorId,
+      onPointerDown: handlePointerDown,
       onClick: (e: React.MouseEvent<HTMLElement>) => {
         children.props.onClick?.(e);
         handleClick();
@@ -60,7 +73,13 @@ function PopoverTrigger({
   }
 
   return (
-    <button type="button" id={ctx?.anchorId} data-slot="popover-trigger" onClick={handleClick}>
+    <button
+      type="button"
+      id={ctx?.anchorId}
+      data-slot="popover-trigger"
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+    >
       {children}
     </button>
   );
@@ -83,17 +102,20 @@ function PopoverContent({
   children?: React.ReactNode;
 }) {
   const ctx = React.useContext(PopoverContext);
+  const { menuRef, onClosing, onClosed } = useMdMenu(!!ctx?.open, ctx?.setOpen ?? (() => {}), ctx?.anchorId);
   const inline = align === "start" ? "start" : align === "end" ? "end" : "start";
 
   return (
     <md-menu
+      ref={menuRef}
       anchor={ctx?.anchorId}
-      open={!!ctx?.open}
-      onClosed={() => ctx?.setOpen(false)}
+      quick
+      onClosing={onClosing}
+      onClosed={onClosed}
       anchorCorner={`end-${inline}`}
       menuCorner={`start-${inline}`}
+      positioning="popover"
       className={className}
-      style={{ zIndex: 1400 }}
     >
       {children}
     </md-menu>

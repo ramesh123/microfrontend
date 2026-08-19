@@ -172,19 +172,19 @@ class ChunkLoadErrorBoundary extends Component<Props, State> {
       if (this.state.isChunkError) {
         return (
           <div className="flex items-center justify-center min-h-screen bg-background p-4">
-            <div className="max-w-md w-full bg-card border border-border rounded-lg shadow-lg p-6 space-y-4">
-              <div className="flex items-center space-x-3">
+            <div className="max-w-md w-full bg-card border border-border rounded-lg shadow-lg p-4 space-y-3">
+              <div className="flex items-center gap-2.5">
                 {this.state.isRecovering ? (
-                  <RefreshCw className="h-8 w-8 text-yellow-500 animate-spin" />
+                  <RefreshCw className="h-6 w-6 text-yellow-500 animate-spin" />
                 ) : (
-                  <AlertCircle className="h-8 w-8 text-yellow-500" />
+                  <AlertCircle className="h-6 w-6 text-yellow-500" />
                 )}
-                <h2 className="text-2xl font-semibold text-foreground">
+                <h2 className="text-lg font-semibold text-foreground">
                   {this.state.isRecovering ? 'Checking for Update…' : 'Update Available'}
                 </h2>
               </div>
 
-              <div className="space-y-2 text-muted-foreground">
+              <div className="space-y-1.5 text-sm text-muted-foreground">
                 {this.state.isRecovering ? (
                   <p>
                     The workflow module is still updating. This page will reload
@@ -232,13 +232,13 @@ class ChunkLoadErrorBoundary extends Component<Props, State> {
       // Show generic error UI for non-chunk errors
       return (
         <div className="flex items-center justify-center min-h-screen bg-background p-4">
-          <div className="max-w-md w-full bg-card border border-border rounded-lg shadow-lg p-6 space-y-4">
-            <div className="flex items-center space-x-3">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-              <h2 className="text-2xl font-semibold text-foreground">
-                Something went wrong
-              </h2>
-            </div>
+            <div className="max-w-md w-full bg-card border border-border rounded-lg shadow-lg p-4 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+                <h2 className="text-lg font-semibold text-foreground">
+                  Something went wrong
+                </h2>
+              </div>
 
             <p className="text-muted-foreground">
               An unexpected error occurred. Please try reloading the page or contact

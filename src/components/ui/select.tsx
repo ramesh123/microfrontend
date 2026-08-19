@@ -5,6 +5,8 @@ import "@material/web/divider/divider.js";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { adoptCompactMenuItemStyles } from "@/lib/compact-md-menu";
+import { dismissOtherMenus, useMdMenu } from "@/lib/use-md-menu";
 
 /** No restriction on empty-string values — kept as identity functions only
  * for call-site compatibility, no longer doing any mapping. */
@@ -114,9 +116,13 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       disabled={ctx?.disabled}
+      onPointerDown={() => {
+        if (ctx?.disabled) return;
+        dismissOtherMenus(ctx?.anchorId);
+      }}
       onClick={() => {
         if (ctx?.disabled) return;
-        ctx?.setOpen(true);
+        ctx?.setOpen(!ctx.open);
       }}
       className={cn(
         "border-input flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50",
@@ -133,17 +139,17 @@ function SelectTrigger({
 
 function SelectContent({ className, children }: { className?: string; children?: React.ReactNode; position?: string }) {
   const ctx = React.useContext(SelectContext);
+  const { menuRef, onClosing, onClosed } = useMdMenu(!!ctx?.open, ctx?.setOpen ?? (() => {}), ctx?.anchorId);
   return (
     <md-menu
+      ref={menuRef}
       data-slot="select-content"
+      quick
       anchor={ctx?.anchorId}
-      open={!!ctx?.open}
-      // md-menu light-dismisses itself (outside click / Escape) — this
-      // syncs that back into the controlled `open` state so it doesn't
-      // immediately fight the menu's own dismissal.
-      onClosed={() => ctx?.setOpen(false)}
+      onClosing={onClosing}
+      onClosed={onClosed}
+      positioning="popover"
       className={cn("min-w-32", className)}
-      style={{ zIndex: 1400 }}
     >
       {children}
     </md-menu>
@@ -181,6 +187,7 @@ function SelectItem({
 
   return (
     <md-menu-item
+      ref={adoptCompactMenuItemStyles}
       data-slot="select-item"
       disabled={disabled}
       selected={isSelected}
@@ -190,10 +197,12 @@ function SelectItem({
         ctx?.setOpen(false);
       }}
     >
-      <span className="absolute right-2 flex size-3.5 items-center justify-center">
-        {isSelected && <CheckIcon className="size-4" />}
+      <span className="flex w-full min-w-0 items-center gap-2">
+        <span className="absolute right-2 flex size-3.5 items-center justify-center">
+          {isSelected && <CheckIcon className="size-4" />}
+        </span>
+        {children === "" || children == null ? <span className="text-muted-foreground">(empty)</span> : children}
       </span>
-      {children === "" || children == null ? <span className="text-muted-foreground">(empty)</span> : children}
     </md-menu-item>
   );
 }

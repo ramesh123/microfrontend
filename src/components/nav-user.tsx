@@ -11,11 +11,7 @@ import {
   Plus,
 } from "lucide-react"
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,25 +89,28 @@ export function NavUser({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:!justify-center"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!justify-center"
             >
               {isCollapsed ? (
-                <span className="sidebar-login-initials" aria-label={user.name || user.email}>
+                <span
+                  className="sidebar-login-initials shrink-0"
+                  aria-label={user.name || user.email}
+                >
                   {initials}
                 </span>
               ) : (
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-[0.72rem] font-semibold leading-none tracking-tight">{initials}</AvatarFallback>
-                </Avatar>
-              )}
-              {!isCollapsed && (
                 <>
+                  <span
+                    className="sidebar-login-initials sidebar-login-initials--expanded shrink-0"
+                    aria-hidden="true"
+                  >
+                    {initials}
+                  </span>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{user.name}</span>
                     <span className="truncate text-xs">{user.email}</span>
                   </div>
-                  <ChevronsUpDown className="ml-auto size-4" />
+                  <ChevronsUpDown className="ml-auto size-4 shrink-0" />
                 </>
               )}
             </SidebarMenuButton>
@@ -120,14 +119,13 @@ export function NavUser({
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}
             align="end"
-            sideOffset={4}
+            sideOffset={8}
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-[0.72rem] font-semibold leading-none tracking-tight">{initials}</AvatarFallback>
-                </Avatar>
+                <span className="sidebar-login-initials sidebar-login-initials--expanded shrink-0" aria-hidden="true">
+                  {initials}
+                </span>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs">{user.email}</span>
@@ -190,7 +188,7 @@ export function NavUser({
             )} */}
             
             <DropdownMenuItem onClick={() => handleLogout()}>
-              <LogOut />
+              <LogOut className="size-3.5 shrink-0" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

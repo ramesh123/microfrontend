@@ -6,6 +6,8 @@ import "@material/web/divider/divider.js";
 import { Check as CheckIcon, ChevronRight as ChevronRightIcon, Circle as CircleIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { adoptCompactMenuItemStyles } from "@/lib/compact-md-menu";
+import { dismissOtherMenus, useMdMenu } from "@/lib/use-md-menu";
 
 type MenuCtx = {
   open: boolean;
@@ -18,17 +20,33 @@ const RadioGroupContext = React.createContext<{ value?: string; onValueChange?: 
 type Side = "top" | "right" | "bottom" | "left";
 type Align = "start" | "center" | "end";
 
-// md-menu positions itself via a 4-value "Corner" enum (start-start/start-end/
-// end-start/end-end, in <block>-<inline> logical terms) rather than MUI's free
-// anchorOrigin+transformOrigin pair — it only really expresses "below, aligned
-// left/right" or "above, aligned left/right", not arbitrary left/right-side
-// anchoring the way Radix/MUI could. side="left"/"right" call sites fall back
-// to the default (below) positioning; every actual call site in this app uses
-// "bottom"/"top", so that gap doesn't bite anything today.
 function sideAlignToCorners(side: Side, align: Align): { anchorCorner: string; menuCorner: string } {
-  const inline = align === "end" ? "end" : "start";
-  if (side === "top") return { anchorCorner: `start-${inline}`, menuCorner: `end-${inline}` };
-  return { anchorCorner: `end-${inline}`, menuCorner: `start-${inline}` };
+  if (side === "top") {
+    const inline = align === "end" ? "end" : "start";
+    return { anchorCorner: `start-${inline}`, menuCorner: `end-${inline}` };
+  }
+  if (side === "bottom") {
+    const inline = align === "end" ? "end" : "start";
+    return { anchorCorner: `end-${inline}`, menuCorner: `start-${inline}` };
+  }
+  if (side === "right") {
+    if (align === "end") return { anchorCorner: "end-end", menuCorner: "end-start" };
+    if (align === "center") return { anchorCorner: "start-end", menuCorner: "start-start" };
+    return { anchorCorner: "start-end", menuCorner: "start-start" };
+  }
+  if (side === "left") {
+    if (align === "end") return { anchorCorner: "end-start", menuCorner: "end-end" };
+    if (align === "center") return { anchorCorner: "start-start", menuCorner: "start-end" };
+    return { anchorCorner: "start-start", menuCorner: "start-end" };
+  }
+  return { anchorCorner: "end-start", menuCorner: "start-start" };
+}
+
+function sideAlignToOffsets(side: Side, sideOffset = 4): { xOffset: number; yOffset: number } {
+  if (side === "right") return { xOffset: sideOffset, yOffset: 0 };
+  if (side === "left") return { xOffset: -sideOffset, yOffset: 0 };
+  if (side === "top") return { xOffset: 0, yOffset: -sideOffset };
+  return { xOffset: 0, yOffset: sideOffset };
 }
 
 function DropdownMenu({
@@ -61,19 +79,41 @@ function DropdownMenuTrigger({
   children,
 }: {
   asChild?: boolean;
-  children?: React.ReactElement<{ onClick?: (e: React.MouseEvent<HTMLElement>) => void; id?: string }>;
+  children?: React.ReactElement<{
+    onClick?: (e: React.MouseEvent<HTMLElement>) => void;
+    onPointerDown?: (e: React.PointerEvent<HTMLElement>) => void;
+    id?: string;
+  }>;
 }) {
   const ctx = React.useContext(DropdownMenuContext);
-  const isElement = React.isValidElement<{ onClick?: (e: React.MouseEvent<HTMLElement>) => void; id?: string }>(children);
+  const isElement = React.isValidElement<{
+    onClick?: (e: React.MouseEvent<HTMLElement>) => void;
+    onPointerDown?: (e: React.PointerEvent<HTMLElement>) => void;
+    id?: string;
+  }>(children);
+  const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (isElement) children.props.onPointerDown?.(e);
+    dismissOtherMenus(ctx?.anchorId);
+  };
   const handleClick = (e: React.MouseEvent<HTMLElement>) => {
     if (isElement) children.props.onClick?.(e);
-    ctx?.setOpen(true);
+    ctx?.setOpen(!ctx.open);
   };
   if (asChild && isElement) {
-    return React.cloneElement(children, { onClick: handleClick, id: ctx?.anchorId });
+    return React.cloneElement(children, {
+      onClick: handleClick,
+      onPointerDown: handlePointerDown,
+      id: ctx?.anchorId,
+    });
   }
   return (
-    <button type="button" id={ctx?.anchorId} data-slot="dropdown-menu-trigger" onClick={handleClick}>
+    <button
+      type="button"
+      id={ctx?.anchorId}
+      data-slot="dropdown-menu-trigger"
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+    >
       {children}
     </button>
   );
@@ -84,6 +124,7 @@ function DropdownMenuContent({
   children,
   side = "bottom",
   align = "start",
+  sideOffset = 4,
   // Radix-only knob some call sites still pass through; md-menu restores
   // focus to its anchor on close by default, so this is accepted for
   // call-site compatibility but has no effect.
@@ -97,17 +138,23 @@ function DropdownMenuContent({
   onCloseAutoFocus?: (event: Event) => void;
 }) {
   const ctx = React.useContext(DropdownMenuContext);
+  const { menuRef, onClosing, onClosed } = useMdMenu(!!ctx?.open, ctx?.setOpen ?? (() => {}), ctx?.anchorId);
   const { anchorCorner, menuCorner } = sideAlignToCorners(side, align);
+  const { xOffset, yOffset } = sideAlignToOffsets(side, sideOffset);
   return (
     <md-menu
+      ref={menuRef}
       data-slot="dropdown-menu-content"
+      quick
       anchor={ctx?.anchorId}
-      open={!!ctx?.open}
-      onClosed={() => ctx?.setOpen(false)}
+      onClosing={onClosing}
+      onClosed={onClosed}
       anchorCorner={anchorCorner}
       menuCorner={menuCorner}
+      xOffset={xOffset}
+      yOffset={yOffset}
+      positioning="popover"
       className={cn("min-w-32", className)}
-      style={{ zIndex: 1400 }}
     >
       {children}
     </md-menu>
@@ -128,6 +175,7 @@ function DropdownMenuItem({
   const ctx = React.useContext(DropdownMenuContext);
   return (
     <md-menu-item
+      ref={adoptCompactMenuItemStyles}
       data-slot="dropdown-menu-item"
       className={cn(inset && "pl-8", variant === "destructive" && "text-destructive", className)}
       onClick={(e: React.MouseEvent<HTMLElement>) => {
@@ -136,7 +184,9 @@ function DropdownMenuItem({
       }}
       {...props}
     >
-      {children}
+      <span className="flex w-full min-w-0 items-center gap-2">
+        {children}
+      </span>
     </md-menu-item>
   );
 }
@@ -155,6 +205,7 @@ function DropdownMenuCheckboxItem({
 } & Omit<React.HTMLAttributes<HTMLElement>, "onClick">) {
   return (
     <md-menu-item
+      ref={adoptCompactMenuItemStyles}
       data-slot="dropdown-menu-checkbox-item"
       // Without this, md-menu-item's default click handler always requests
       // the parent md-menu to close (see menuItemController.js) — wrong for
@@ -198,6 +249,7 @@ function DropdownMenuRadioItem({
   const checked = group?.value === value;
   return (
     <md-menu-item
+      ref={adoptCompactMenuItemStyles}
       data-slot="dropdown-menu-radio-item"
       // Same reasoning as DropdownMenuCheckboxItem — the original behavior
       // (unchanged from the MUI-era version) never explicitly closed the menu
@@ -273,11 +325,13 @@ function DropdownMenuSub({ children }: { children?: React.ReactNode }) {
 
   return (
     <md-sub-menu data-slot="dropdown-menu-sub">
-      <md-menu-item slot="item" className={triggerClassName}>
-        {trigger}
-        <ChevronRightIcon size={16} className="ml-auto" />
+      <md-menu-item ref={adoptCompactMenuItemStyles} slot="item" className={triggerClassName}>
+        <span className="flex w-full min-w-0 items-center gap-2">
+          {trigger}
+          <ChevronRightIcon size={16} className="ml-auto" />
+        </span>
       </md-menu-item>
-      <md-menu className={cn("min-w-32", contentClassName)} style={{ zIndex: 1400 }}>
+      <md-menu positioning="popover" quick className={cn("min-w-32", contentClassName)}>
         {content}
       </md-menu>
     </md-sub-menu>

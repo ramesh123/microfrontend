@@ -7,7 +7,6 @@ import DynamicBreadcrumb from './common/DynamicBreadcrumb'
 import AIimage from '@/assets/images/ai.png'
 import algoLogo from '@/assets/images/AlgoLogo.jpeg'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { PanelLeftOpen } from 'lucide-react'
 interface HeaderProps extends React.HTMLAttributes<HTMLElement> {
   fixed?: boolean
   ref?: React.Ref<HTMLElement>
@@ -53,9 +52,7 @@ export const Header = ({
 
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
         {!hideSidebar && (
-          <SidebarTrigger variant="outline" className="h-7 w-7 shrink-0 p-0 text-xs">
-            <PanelLeftOpen className="h-3.5 w-3.5" />
-          </SidebarTrigger>
+          <SidebarTrigger className="h-7 w-7 shrink-0 p-0 text-xs" />
         )}
         {/* Landing page icon – always in top nav bar (e.g. on workflow screen when sidebar hidden) */}
         <button

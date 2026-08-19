@@ -46,9 +46,22 @@ declare global {
       "md-select-option": MdBase;
       "md-list": MdBase;
       "md-list-item": MdBase;
+      "md-navigation-drawer-modal": MdBase & { opened?: boolean; pivot?: "start" | "end" };
+      "md-navigation-drawer": MdBase & { opened?: boolean; pivot?: "start" | "end" };
       "md-outlined-segmented-button": MdBase;
       "md-outlined-segmented-button-set": MdBase;
-      "md-icon": MdBase;
+      "md-outlined-text-field": MdBase & {
+        label?: string;
+        placeholder?: string;
+        type?: string;
+        value?: string;
+        required?: boolean;
+        error?: boolean;
+        errorText?: string;
+        supportingText?: string;
+        hasTrailingIcon?: boolean;
+        hasLeadingIcon?: boolean;
+      };
     }
   }
 }
@@ -86,9 +99,22 @@ declare module "react" {
       "md-select-option": MdBase;
       "md-list": MdBase;
       "md-list-item": MdBase;
+      "md-navigation-drawer-modal": MdBase & { opened?: boolean; pivot?: "start" | "end" };
+      "md-navigation-drawer": MdBase & { opened?: boolean; pivot?: "start" | "end" };
       "md-outlined-segmented-button": MdBase;
       "md-outlined-segmented-button-set": MdBase;
-      "md-icon": MdBase;
+      "md-outlined-text-field": MdBase & {
+        label?: string;
+        placeholder?: string;
+        type?: string;
+        value?: string;
+        required?: boolean;
+        error?: boolean;
+        errorText?: string;
+        supportingText?: string;
+        hasTrailingIcon?: boolean;
+        hasLeadingIcon?: boolean;
+      };
     }
   }
 }

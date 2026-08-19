@@ -488,6 +488,7 @@ const wrapRoutes = (routes: any[]): any[] =>
 export const RoutesApp = () => {
   const { hydrated } = useAuth();
   const allRoutes = useAllRoutes();
+  const wrappedRoutes = React.useMemo(() => wrapRoutes(allRoutes), [allRoutes]);
 
   if (!hydrated) {
     return (
@@ -497,5 +498,5 @@ export const RoutesApp = () => {
     );
   }
 
-  return useRoutes(wrapRoutes(allRoutes));
+  return useRoutes(wrappedRoutes);
 };

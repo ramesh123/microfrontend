@@ -295,7 +295,7 @@ export function TeamSwitcher({
                   <DropdownMenuItem
                     key={orgId || index}
                     onClick={() => handleOrganizationSwitch(orgId, orgName)}
-                    className={`gap-2 p-2 ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}`}
+                    className={isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
                   >
                     <div className="flex size-6 items-center justify-center rounded-md border">
                       <Building2 className="size-3.5 shrink-0" />
@@ -313,7 +313,7 @@ export function TeamSwitcher({
                   <DropdownMenuItem
                     key={index}
                     onClick={() => setActiveTeam(team)}
-                    className={`gap-2 p-2 ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}`}
+                    className={isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
                   >
                     <div className="flex size-6 items-center justify-center rounded-md border">
                       <team.logo className="size-3.5 shrink-0" />
@@ -326,7 +326,7 @@ export function TeamSwitcher({
             )}
             
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
+            <DropdownMenuItem>
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <Plus className="size-4" />
               </div>

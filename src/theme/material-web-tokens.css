@@ -28,4 +28,57 @@
   --md-sys-color-outline-variant: var(--border);
   --md-sys-color-background: var(--background);
   --md-sys-color-on-background: var(--foreground);
+
+  /* Compact menu / popover density (MD3 defaults are 56px rows + 16px gaps). */
+  --md-menu-top-space: 4px;
+  --md-menu-bottom-space: 4px;
+  --md-menu-item-one-line-container-height: 32px;
+  --md-menu-item-two-line-container-height: 44px;
+  --md-menu-item-top-space: 6px;
+  --md-menu-item-bottom-space: 6px;
+  --md-menu-item-leading-space: 10px;
+  --md-menu-item-trailing-space: 10px;
+  --md-menu-item-label-text-size: 0.875rem;
+  --md-menu-item-label-text-line-height: 1.25rem;
+  --md-menu-container-color: var(--popover);
+  --md-sys-color-surface-container: var(--popover);
+  --md-menu-item-label-text-color: var(--popover-foreground);
+  --md-menu-item-supporting-text-color: var(--muted-foreground);
+
+  /* Compact md-list (sidebar nav rows). */
+  --md-list-item-one-line-container-height: 28px;
+  --md-list-item-two-line-container-height: 40px;
+  --md-list-item-top-space: 4px;
+  --md-list-item-bottom-space: 4px;
+  --md-list-item-leading-space: 8px;
+  --md-list-item-trailing-space: 8px;
+  --md-list-item-label-text-size: 0.875rem;
+  --md-list-item-label-text-line-height: 1.25rem;
+  --md-list-item-label-text-color: var(--sidebar-foreground);
+  --md-list-item-leading-icon-color: var(--primary);
+  --md-navigation-drawer-modal-container-color: var(--sidebar);
+  --md-navigation-drawer-modal-container-width: 16rem;
+
+  /* Compact outlined text fields (login form). */
+  --md-outlined-text-field-outline-color: var(--border);
+  --md-outlined-text-field-focus-outline-color: var(--ring);
+  --md-outlined-text-field-focus-outline-width: 1px;
+  --md-outlined-text-field-input-text-color: var(--foreground);
+  --md-outlined-text-field-input-text-placeholder-color: var(--muted-foreground);
+  --md-outlined-text-field-label-text-color: var(--foreground);
+  --md-outlined-text-field-container-shape: 0.375rem;
+}
+
+md-menu-item,
+md-list-item {
+  gap: 0.5rem !important;
+}
+
+.login-form-md md-outlined-text-field {
+  width: 100%;
+}
+
+.login-form-md md-filled-button.login-form-submit {
+  width: 100%;
+  --md-filled-button-container-height: 2.25rem;
 }

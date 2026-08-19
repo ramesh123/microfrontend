@@ -1,13 +1,10 @@
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from '@/components/ui/collapsible'
-import {
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
+  SidebarMenuCollapsible,
+  SidebarMenuCollapsibleContent,
+  SidebarMenuCollapsibleTrigger,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
@@ -15,35 +12,39 @@ import {
   useSidebar
 } from '@/components/ui/sidebar'
 import * as React from 'react'
-import { ChevronRight, ChevronLeft, MousePointer2 } from 'lucide-react'
+import { ChevronRight, MousePointer2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import CustomBadge from '@/components/ui/custom-badge'
 import { useCollapsedSelection } from '@/components/CollapsedSelectionContext'
-// Inline collapsed behavior will be handled without dropdowns or tooltips
-import type { NavCollapsible, NavItem, NavLink, NavGroup } from '@/types/sidebar'
+import type { NavItem, NavGroup } from '@/types/sidebar'
 import { cn } from '@/lib/utils'
 
 export function NavGroup({ title, children }: NavGroup) {
-  const { state } = useSidebar()
   const { pathname } = useLocation()
+  const { state } = useSidebar()
   const { selectedKey } = useCollapsedSelection()
 
   return (
-    <>
-      <SidebarGroup>
-      {/* <SidebarGroupLabel>{title}</SidebarGroupLabel> */}
+    <SidebarGroup>
       <SidebarMenu>
         {children.map((item, idx) => {
           const itemKey = `${title}::${item.title}-${item.path}::${idx}`
-          const groupItemKey = itemKey
 
-          // If collapsed and a parent is selected, hide all other top-level items
-          if (state === 'collapsed' && selectedKey && selectedKey !== groupItemKey) {
+          if (state === 'collapsed' && selectedKey && selectedKey !== itemKey) {
             return null
           }
 
-          if (!item.children) return <SidebarMenuLink key={itemKey} item={item} href={pathname} itemKey={itemKey} />
+          if (!item.children) {
+            return (
+              <SidebarMenuLink
+                key={itemKey}
+                item={item}
+                href={pathname}
+                itemKey={itemKey}
+              />
+            )
+          }
 
           if (state === 'collapsed') {
             return (
@@ -51,61 +52,82 @@ export function NavGroup({ title, children }: NavGroup) {
                 key={itemKey}
                 item={item}
                 href={pathname}
-                groupTitle={title}
                 itemKey={itemKey}
               />
             )
           }
 
-          return <SidebarMenuCollapsible key={itemKey} item={item} href={pathname} groupTitle={title} itemKey={itemKey} />
+          return (
+            <NavCollapsibleMenuItem
+              key={itemKey}
+              item={item}
+              href={pathname}
+              itemKey={itemKey}
+            />
+          )
         })}
       </SidebarMenu>
-      </SidebarGroup>
-    </>
+    </SidebarGroup>
   )
 }
 
 const NavBadge = ({ children }: { children: ReactNode }) => (
   <CustomBadge variant="secondary" label={children.toString()} className='rounded-full px-1 py-0 text-xs'></CustomBadge>
 )
-const darK = false;
 
-const SidebarMenuLink = ({ item, href, itemKey }: { item: NavItem; href: string; itemKey: string }) => {
+function CollapsedBackButton() {
+  const { setSelectedKey } = useCollapsedSelection()
+
+  return (
+    <div className="mb-2 flex justify-center">
+      <SidebarMenuButton
+        onClick={(e) => {
+          e.stopPropagation()
+          setSelectedKey(null)
+        }}
+        className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-primary/10 transition-colors"
+        aria-label="Back to all menu items"
+      >
+        <MousePointer2 className="h-4 w-4 text-primary" />
+      </SidebarMenuButton>
+    </div>
+  )
+}
+
+const SidebarMenuLink = ({
+  item,
+  href,
+  itemKey,
+}: {
+  item: NavItem
+  href: string
+  itemKey: string
+}) => {
   const { setOpenMobile, state } = useSidebar()
   const { selectedKey, setSelectedKey } = useCollapsedSelection()
-  const showTooltip = state == 'collapsed'
-  const ownKey = itemKey
+  const showTooltip = state === 'collapsed'
+  const isDrilledIn = state === 'collapsed' && selectedKey === itemKey
 
   return (
     <SidebarMenuItem>
-      {state === 'collapsed' && selectedKey === ownKey && (
-        <div className="flex justify-center mb-2">
-          <SidebarMenuButton
-            onClick={(e) => {
-              e.stopPropagation()
-              setSelectedKey(null)
-            }}
-            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-primary/10 transition-colors"
-          >
-            <MousePointer2 className="h-4 w-4 text-primary" />
-          </SidebarMenuButton>
-        </div>
-      )}
+      {isDrilledIn && <CollapsedBackButton />}
 
       <SidebarMenuButton
         asChild
         isActive={checkIsActive(href, item)}
-        {...(showTooltip ? { tooltip: item.title } : {})}
+        {...(showTooltip && !isDrilledIn ? { tooltip: item.title } : {})}
       >
         <Link
           to={item.path}
           onClick={() => {
             setOpenMobile(false)
-            if (state === 'collapsed') setSelectedKey(ownKey)
+            if (state === 'collapsed') {
+              setSelectedKey(itemKey)
+            }
           }}
         >
           {item.icon && <item.icon className='text-primary' />}
-          <span >{item.title}</span>
+          <span>{item.title}</span>
           {item.badge && <NavBadge>{item.badge}</NavBadge>}
         </Link>
       </SidebarMenuButton>
@@ -113,45 +135,37 @@ const SidebarMenuLink = ({ item, href, itemKey }: { item: NavItem; href: string;
   )
 }
 
-const SidebarMenuCollapsible = ({
+const NavCollapsibleMenuItem = ({
   item,
   href,
-  groupTitle,
-  itemKey
+  itemKey,
 }: {
   item: NavItem
   href: string
-  groupTitle: string
   itemKey: string
 }) => {
   const { setOpenMobile } = useSidebar()
   const parentActive = checkIsActive(href, item)
+
   return (
-    <Collapsible
-      asChild
-      defaultOpen
-      className='group/collapsible'
-    >
+    <SidebarMenuCollapsible asChild defaultOpen className='group/collapsible'>
       <SidebarMenuItem>
-        <CollapsibleTrigger asChild>
+        <SidebarMenuCollapsibleTrigger asChild>
           <SidebarMenuButton tooltip={item.title} isActive={parentActive}>
             {item.icon && <item.icon className='text-primary' />}
-            <span >{item.title}</span>
+            <span>{item.title}</span>
             {item.badge && <NavBadge>{item.badge}</NavBadge>}
             <ChevronRight className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
           </SidebarMenuButton>
-        </CollapsibleTrigger>
-        <CollapsibleContent className='CollapsibleContent'>
+        </SidebarMenuCollapsibleTrigger>
+        <SidebarMenuCollapsibleContent className='CollapsibleContent'>
           <SidebarMenuSub>
-            {item.children.map((subItem, sidx) => {
+            {item.children!.map((subItem, sidx) => {
               const subKey = `${itemKey}::${subItem.title}-${subItem.path}::${sidx}`
               const subActive = checkIsActive(href, subItem)
               return (
                 <SidebarMenuSubItem key={subKey}>
-                  <SidebarMenuSubButton
-                    asChild
-                    isActive={subActive}
-                  >
+                  <SidebarMenuSubButton asChild isActive={subActive}>
                     <Link to={subItem.path} onClick={() => setOpenMobile(false)}>
                       {subItem.icon && (
                         <subItem.icon
@@ -161,7 +175,7 @@ const SidebarMenuCollapsible = ({
                           )}
                         />
                       )}
-                      <span >{subItem.title}</span>
+                      <span>{subItem.title}</span>
                       {subItem.badge && <NavBadge>{subItem.badge}</NavBadge>}
                     </Link>
                   </SidebarMenuSubButton>
@@ -169,122 +183,73 @@ const SidebarMenuCollapsible = ({
               )
             })}
           </SidebarMenuSub>
-        </CollapsibleContent>
+        </SidebarMenuCollapsibleContent>
       </SidebarMenuItem>
-    </Collapsible>
+    </SidebarMenuCollapsible>
   )
 }
 
 const SidebarMenuCollapsedInline = ({
   item,
   href,
-  groupTitle,
-  itemKey
+  itemKey,
 }: {
   item: NavItem
   href: string
-  groupTitle: string
   itemKey: string
 }) => {
   const { setOpenMobile, state } = useSidebar()
-  const [open, setOpen] = React.useState(false)
   const { selectedKey, setSelectedKey } = useCollapsedSelection()
-  const ownKey = itemKey
+  const isDrilledIn = selectedKey === itemKey
 
-  // Ensure local open state doesn't persist when sidebar becomes collapsed.
-  // This prevents other groups from rendering their inline children when a different
-  // group's parent is selected and then cleared (Back).
-  React.useEffect(() => {
-    if (state === 'collapsed') setOpen(false)
-  }, [state])
-
-  // Close local open when the global selection changes and doesn't match this item.
-  React.useEffect(() => {
-    if (state === 'collapsed') {
-      if (!selectedKey) {
-        setOpen(false)
-        return
-      }
-
-      if (selectedKey !== ownKey) setOpen(false)
-    }
-  }, [selectedKey, state, ownKey])
-
-  const toggle = (e: React.MouseEvent) => {
-    // When collapsed, set global selected parent instead of local toggle
-    if (state === 'collapsed') {
-      // Always set this parent as the selectedKey when clicked in collapsed mode.
-      // Clearing the selection (going "back") is handled only by the explicit back button.
-      setSelectedKey(ownKey)
-      return
-    }
-
-    // don't prevent default — allow normal focus/interaction
-    setOpen((v) => !v)
+  const handleParentClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedKey(itemKey)
   }
 
   return (
-    
     <SidebarMenuItem>
-      {state === 'collapsed' && selectedKey === ownKey && (
-        <div className="flex justify-center mb-2">
-          <SidebarMenuButton
-            onClick={(e) => {
-              e.stopPropagation()
-              setSelectedKey(null)
-            }}
-            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-primary/10 transition-colors"
-          >
-            <MousePointer2 className="h-4 w-4 text-primary" />
-          </SidebarMenuButton>
-        </div>
-      )}
+      {isDrilledIn && <CollapsedBackButton />}
+
       <SidebarMenuButton
-        onClick={toggle}
+        onClick={handleParentClick}
         isActive={checkIsActive(href, item)}
-        {...(state === 'collapsed' ? { tooltip: item.title } : {})}
+        {...(!isDrilledIn ? { tooltip: item.title } : {})}
       >
         {item.icon && <item.icon className='text-primary' />}
-        {/* keep title visually hidden in collapsed mode */}
         <span className='sr-only'>{item.title}</span>
         {item.badge && <NavBadge>{item.badge}</NavBadge>}
-        {state !== 'collapsed' && (
-          <MousePointer2 className={`ml-auto transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
-        )}
-        
       </SidebarMenuButton>
 
-      {(open || (state === 'collapsed' && selectedKey === ownKey)) && (
-        <div className="flex flex-col items-center mt-2 space-y-2">
-              {item.children.map((sub, sidx) => {
-                const collapsedSubKey = `${itemKey}::${sub.title}-${sub.path}::${sidx}`
-                return (
-                  <div key={collapsedSubKey}>
+      {isDrilledIn && (
+        <div className="mt-2 flex flex-col items-center space-y-2">
+          {item.children!.map((sub, sidx) => {
+            const subActive = checkIsActive(href, sub)
+            return (
               <SidebarMenuButton
+                key={`${itemKey}::${sub.title}-${sub.path}::${sidx}`}
                 asChild
-                isActive={checkIsActive(href, sub)}
-                {...(state === 'collapsed' ? { tooltip: sub.title } : {})}
+                isActive={subActive}
+                tooltip={sub.title}
               >
                 <Link
                   to={sub.path}
                   onClick={() => {
-                    // Close mobile sidebar on navigation but keep inline children open.
                     setOpenMobile(false)
+                    setSelectedKey(itemKey)
                   }}
-                  className={`flex items-center justify-center w-8 h-8 rounded-md hover:bg-primary/10 transition-colors ${
-                    checkIsActive(href, sub) ? 'bg-primary/10' : ''
-                  }`}
-                  aria-current={checkIsActive(href, sub) ? 'page' : undefined}
+                  className="flex items-center justify-center"
+                  aria-current={subActive ? 'page' : undefined}
                 >
-                  <div className="flex flex-col items-center">
-                    {sub.icon ? <sub.icon className="h-4 w-4 text-primary" /> : <span className="h-4 w-4" />}
-                    {state === 'collapsed' && (
-                      <span className={`mt-1 block h-[2px] w-4 rounded ${checkIsActive(href, sub) ? 'bg-primary' : 'bg-primary/30'}`} />
-                    )}
-                  </div>
+                  {sub.icon ? (
+                    <sub.icon className="h-4 w-4 shrink-0 text-primary" />
+                  ) : (
+                    <span className="h-4 w-4" />
+                  )}
+                  <span className="sr-only">{sub.title}</span>
                 </Link>
               </SidebarMenuButton>
-              </div>
             )
           })}
         </div>
@@ -293,7 +258,8 @@ const SidebarMenuCollapsedInline = ({
   )
 }
 
-function checkIsActive(href: string, item: NavItem) {
+function checkIsActive(href: string, item?: NavItem | null) {
+  if (!item) return false
   const normalizePath = (path?: string) => (path || '').split('?')[0].replace(/\/+$/, '')
   const currentPath = normalizePath(href)
   const itemPath = normalizePath(item.path)
@@ -302,7 +268,5 @@ function checkIsActive(href: string, item: NavItem) {
     return !!targetPath && (currentPath === targetPath || currentPath.startsWith(`${targetPath}/`))
   }
 
-  return isPathActive(itemPath) || !!item?.children?.some((child) => isPathActive(child.path))
+  return isPathActive(itemPath) || !!item.children?.some((child) => child && isPathActive(child.path))
 }
-
-
