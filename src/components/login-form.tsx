@@ -1,21 +1,19 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { z } from "zod";
 import { useState } from "react";
 import InteractiveGridPattern from "./magicui/interactive-grid-pattern";
 import { motion } from "framer-motion";
 import { useRbacStore } from "@/stores/useRBACStore";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/context/auth/authContext";
-import algoLogo from '@/assets/images/AlgoLogo.jpeg'
 import { Eye, EyeOff } from "lucide-react";
+import "@material/web/textfield/outlined-text-field.js";
+import "@material/web/iconbutton/icon-button.js";
+import "@material/web/button/filled-button.js";
+import { adoptCompactOutlinedTextFieldStyles } from "@/lib/compact-md-textfield";
 
-const FormSchema = z.object({
-  username: z.string().min(3, "Username is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
+type LoginFormData = {
+  username?: string;
+  password?: string;
+};
 
 const allowedPermissions: any = [
   {
@@ -142,14 +140,11 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const [data, setData] = useState({
-    // username: "kushal",
-    // password: "kushal@123",
-  });
+  const [data, setData] = useState<LoginFormData>({});
   const { dispatch } = useAuth();
   const navigate = useNavigate();
 
-  const { login, currentUser } = useRbacStore();
+  const { login } = useRbacStore();
   const [showPassword, setShowPassword] = useState(false);
   const companyMainText = import.meta.env.VITE_COMPANY_MAJOR_TEXT;
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -170,17 +165,15 @@ export function LoginForm({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Card className="py-0 max-w-4xl bg-background/80 backdrop-blur-sm border-border/50 overflow-hidden">
-          <CardContent className="grid p-0 md:grid-cols-2">
+        <div
+          data-login-card
+          className="flex max-w-4xl flex-col gap-1 overflow-hidden rounded-xl border border-border/50 bg-background/80 py-0 text-card-foreground shadow-sm backdrop-blur-sm"
+        >
+          <div className="grid p-0 md:grid-cols-2">
             <div className="p-4 md:p-8 flex flex-col justify-center">
-              <form onSubmit={(e) => handleFormSubmit(e)}>
+              <form className="login-form-md" onSubmit={(e) => handleFormSubmit(e)}>
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col items-center text-center">
-                    {/* <img
-                      src={algoLogo}
-                      alt="Algo"
-                      className="h-14 w-auto max-w-[min(320px,85vw)] object-contain mb-1"
-                    /> */}
                     <h1 className="truncate text-base font-semibold tracking-tight text-primary sm:text-lg">
                       {companyMainText}
                     </h1>
@@ -189,54 +182,62 @@ export function LoginForm({
                     </p>
                   </div>
                   <div className="grid gap-2 w-80">
-                    <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      type="text"
+                    <md-outlined-text-field
+                      ref={adoptCompactOutlinedTextFieldStyles}
+                      label="Username"
                       placeholder="Enter your username"
+                      type="text"
                       required
-                      className="py-2 px-3 rounded-md border border-border focus-visible:ring-0 focus-visible:ring-offset-0"
-                      onChange={(e) => setData({ ...data, username: e.target.value })}
+                      value={data.username ?? ""}
+                      onInput={(e) => {
+                        const field = e.currentTarget as HTMLElement & { value: string };
+                        setData((prev) => ({ ...prev, username: field.value }));
+                      }}
                     />
                   </div>
                   <div className="grid gap-2 w-80">
-                    <div className="flex items-center">
-                      <Label htmlFor="password">Password</Label>
+                    <div className="flex items-center justify-end">
                       <a
                         href="#"
-                        className="ml-auto text-blue-500 text-sm underline-offset-2 hover:underline"
+                        className="text-blue-500 text-sm underline-offset-2 hover:underline"
                       >
                         Forgot your password?
                       </a>
                     </div>
-                  <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
-                        required
-                        className="py-2 px-3 pr-10 rounded-md border border-border focus-visible:ring-0 focus-visible:ring-offset-0"
-                        onChange={(e) =>
-                          setData({ ...data, password: e.target.value })
-                        }
-                      />
-
-                      <button
+                    <md-outlined-text-field
+                      ref={adoptCompactOutlinedTextFieldStyles}
+                      label="Password"
+                      placeholder="Enter your password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      hasTrailingIcon
+                      value={data.password ?? ""}
+                      onInput={(e) => {
+                        const field = e.currentTarget as HTMLElement & { value: string };
+                        setData((prev) => ({ ...prev, password: field.value }));
+                      }}
+                    >
+                      <md-icon-button
+                        slot="trailing-icon"
                         type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowPassword((prev) => !prev)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowPassword((prev) => !prev);
+                        }}
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
                         ) : (
                           <Eye className="h-4 w-4" />
                         )}
-                      </button>
-                    </div>
+                      </md-icon-button>
+                    </md-outlined-text-field>
                   </div>
-                  <Button type="submit" className="w-full">
+                  <md-filled-button type="submit" className="login-form-submit w-full">
                     Login
-                  </Button>
+                  </md-filled-button>
 
                   {/* <div className="grid grid-cols-3 gap-4">
                     <Button variant="outline" type="button" className="w-full">
@@ -283,8 +284,8 @@ export function LoginForm({
                 className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
         <div className="text-muted-foreground *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4 mt-4">
           By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
           and <a href="#">Privacy Policy</a>.

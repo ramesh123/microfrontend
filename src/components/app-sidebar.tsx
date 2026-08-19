@@ -79,7 +79,7 @@ import { useRbacStore } from "@/stores/useRBACStore";
 import { SidebarDataComponent } from "./layout/data/sidebar-data";
 import { NavGroup } from "./nav-group";
 import { ProjectsSwitcher } from "./projects-switcher";
-import { CollapsedSelectionProvider, useCollapsedSelection } from '@/components/CollapsedSelectionContext'
+import { useCollapsedSelection } from '@/components/CollapsedSelectionContext'
 import { ChevronLeft } from 'lucide-react'
 
 
@@ -139,9 +139,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   // Show navigation based on active perspective
   return (
-    <CollapsedSelectionProvider>
-      <SidebarWithSelection {...props} userInfo={userInfo} sidebarData={sidebarData} />
-    </CollapsedSelectionProvider>
+    <SidebarWithSelection {...props} userInfo={userInfo} sidebarData={sidebarData} />
   )
 }
 
@@ -149,26 +147,27 @@ function SidebarWithSelection({ userInfo, sidebarData, ...props }: { userInfo: a
   const { state } = useSidebar()
   const { selectedKey, setSelectedKey } = useCollapsedSelection()
 
+  React.useEffect(() => {
+    if (state === 'expanded') {
+      setSelectedKey(null)
+    }
+  }, [state, setSelectedKey])
+
   return (
     <Sidebar collapsible="icon" {...props} variant="floating">
       <SidebarHeader className="gap-0 relative">
-        <div className="flex items-center justify-center" >
-          {state === 'collapsed' && selectedKey ? (
-            <div className="absolute left-2 top-2">
-              <button
-                aria-label="Back"
-                onClick={() => setSelectedKey(null)}
-                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-primary/10"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-            </div>
-          ) : null}
-
-          {state !== "collapsed" && (
-            <></>
-          )}
-        </div>
+        {state === 'collapsed' && selectedKey ? (
+          <div className="absolute left-2 top-2 z-10">
+            <button
+              type="button"
+              aria-label="Back to all menu items"
+              onClick={() => setSelectedKey(null)}
+              className="flex items-center gap-2 rounded px-2 py-1 hover:bg-primary/10"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
         <ProjectsSwitcher />
       </SidebarHeader>
       <SidebarContent className="!ml-0">

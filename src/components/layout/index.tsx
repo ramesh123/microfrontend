@@ -1,6 +1,7 @@
 import { AppSidebar } from '@/components/app-sidebar'
 import { Header } from '@/components/header'
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { CollapsedSelectionProvider } from '@/components/CollapsedSelectionContext'
 import { CommandMenu } from '@/components/command-menu'
 import { SearchProvider } from '@/context/search'
 import { cn } from '@/lib/utils'
@@ -21,7 +22,8 @@ export default function Layout() {
   return (
     <SearchProvider>
       <SidebarProvider defaultOpen={defaultOpen}>
-        <AppSidebar />
+        <CollapsedSelectionProvider>
+          <AppSidebar />
         <div
           id='content'
           className={cn(
@@ -52,6 +54,7 @@ export default function Layout() {
             <Outlet />
           </main>
         </div>
+        </CollapsedSelectionProvider>
       </SidebarProvider>
       <CommandMenu />
     </SearchProvider>
